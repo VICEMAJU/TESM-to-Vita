@@ -1,4 +1,4 @@
-name: Construyendo MyGUI (Intento 3 - Auto-Detect)
+name: Intento 5 - Instalacion Manual
 
 on: [push, workflow_dispatch]
 
@@ -8,59 +8,44 @@ jobs:
     container: vitasdk/vitasdk:latest
 
     steps:
-      - name: 1. Instalar Herramientas (Modo Seguro)
-        # Este script intenta detectar qué sistema es e instala 'make' y 'cmake'
+      - name: 1. Instalar Make y Wget (Manual)
         run: |
-          if command -v apk > /dev/null; then
-            echo "Sistema detectado: Alpine Linux"
-            apk update && apk add --no-cache make cmake git
-          elif command -v apt-get > /dev/null; then
-            echo "Sistema detectado: Ubuntu/Debian"
-            apt-get update && apt-get install -y make cmake git
-          else
-            echo "ERROR: No sé cómo instalar cosas en este sistema."
-            exit 1
-          fi
+          # Instalamos Make (para compilar) y Wget (para descargar archivos)
+          apk update && apk add --no-cache make cmake git wget
 
-      - name: 2. Descargar MyGUI
+      - name: 2. Descargar código MyGUI
         run: git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
 
-      - name: 3. Configurar y Compilar (Con búsqueda automática)
+      - name: 3. 📥 BAJAR Toolchain Manualmente
         run: |
-          # BÚSQUEDA DEL TESORO: Buscamos el archivo del Toolchain
-          echo "Buscando archivo de configuración para Vita..."
-          TOOLCHAIN_PATH=$(find /usr/local -name "Toolchain-PSVita.cmake" | head -n 1)
+          # Aquí está tu idea: Descargamos el archivo nosotros mismos.
+          # Lo guardamos como 'vita.cmake' en la carpeta actual.
+          wget https://raw.githubusercontent.com/vitasdk/buildscripts/master/cmake/Toolchain-PSVita.cmake -O vita.cmake
           
-          if [ -z "$TOOLCHAIN_PATH" ]; then
-             # Si no encuentra el primero, busca el alternativo
-             TOOLCHAIN_PATH=$(find /usr/local -name "vitasdk.cmake" | head -n 1)
-          fi
-
-          echo "¡Encontrado en: $TOOLCHAIN_PATH!"
+          # Hacemos una corrección manual dentro del archivo por si acaso
+          # Esto asegura que busque las librerías en la carpeta correcta del sistema
+          sed -i 's|/usr/local/vitasdk|$ENV{VITASDK}|g' vita.cmake
           
-          # Si aún así está vacío, fallamos con dignidad
-          if [ -z "$TOOLCHAIN_PATH" ]; then
-            echo "ERROR FATAL: No encuentro el archivo .cmake en ningún lado."
-            find /usr/local -maxdepth 4 # Muestra qué hay para depurar
-            exit 1
-          fi
+          echo "✅ Archivo de configuración descargado y listo."
 
+      - name: 4. Configurar y Compilar
+        run: |
           mkdir mygui_build
           cd mygui_build
-          
-          # USAMOS LA RUTA ENCONTRADA
+
+          # Le decimos a CMake: Usa el archivo "vita.cmake" que bajé en el paso anterior
           cmake ../mygui_src \
-            -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" \
+            -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
             -DMYGUI_RENDERSYSTEM=1 \
             -DMYGUI_BUILD_DEMOS=OFF \
             -DMYGUI_BUILD_TOOLS=OFF \
             -DMYGUI_BUILD_PLUGINS=OFF \
-            -DMYGUI_USE_FREETYPE=OFF
-            
-          # COMPILAR
-          echo "Iniciando compilación..."
+            -DMYGUI_USE_FREETYPE=OFF \
+            -G "Unix Makefiles"
+
+          # Compilar
           make -j$(nproc)
 
-      - name: 4. Verificar éxito
+      - name: 5. Verificar Éxito
         run: ls -lh mygui_build/lib/libMyGUIEngine.a
