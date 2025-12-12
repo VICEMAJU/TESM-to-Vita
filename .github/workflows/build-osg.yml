@@ -1,4 +1,4 @@
-name: Compilando OSG (Intento 5 - Fix stat64)
+name: Compilando OSG (Intento 7 - Amputacion OSC)
 
 on: [push, workflow_dispatch]
 
@@ -10,12 +10,29 @@ jobs:
     steps:
       - name: 1. Instalar Herramientas
         run: |
-          apk update && apk add --no-cache make cmake git pkgconf
+          apk update && apk add --no-cache make cmake git pkgconf sed
 
       - name: 2. Descargar OpenSceneGraph
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
-      - name: 3. ✍️ Inyectar Toolchain (Con Parche stat64)
+      - name: 3. 🩹 PARCHEAR y AMPUTAR
+        run: |
+          echo "Aplicando parches..."
+          
+          # PARCHE 1: Eliminar stat64 (Cirugía vital)
+          sed -i 's/stat64/stat/g' osg_src/src/osgDB/FileUtils.cpp
+          if [ -f osg_src/src/osgDB/FileNameUtils.cpp ]; then
+             sed -i 's/stat64/stat/g' osg_src/src/osgDB/FileNameUtils.cpp
+          fi
+
+          # AMPUTACIÓN: Borrar plugins inútiles que dan error
+          # OSC (Open Sound Control) falla por Endianness. No lo necesitamos.
+          echo "Borrando plugin OSC..."
+          rm -rf osg_src/src/osgPlugins/osc
+
+          echo "✅ Código listo."
+
+      - name: 4. ✍️ Inyectar Toolchain
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -28,17 +45,11 @@ jobs:
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
           
-          # AQUÍ ESTÁN LOS ARREGLOS ACUMULADOS:
-          # 1. -D__vita__ : Define la plataforma
-          # 2. -DPATH_MAX=4096 : Arregla el error anterior de rutas
-          # 3. -DNO_WORDEXP : Desactiva funciones de shell que Vita no tiene
-          # 4. -Dstat64=stat : EL NUEVO ARREGLO. Convierte stat64 en stat normal.
-          
-          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Dstat64=stat")
-          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Dstat64=stat")
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           EOF
 
-      - name: 4. Configurar OSG
+      - name: 5. Configurar OSG
         run: |
           mkdir osg_build
           cd osg_build
@@ -66,10 +77,10 @@ jobs:
             -DSDL2_LIBRARY="$VITASDK/arm-vita-eabi/lib/libSDL2.a" \
             -G "Unix Makefiles"
 
-      - name: 5. Compilar
+      - name: 6. Compilar
         run: |
           cd osg_build
           make -j$(nproc)
 
-      - name: 6. Verificar Éxito
+      - name: 7. Verificar Éxito
         run: ls -lh osg_build/lib/libosg.a
