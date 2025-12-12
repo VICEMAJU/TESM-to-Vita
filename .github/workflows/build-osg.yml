@@ -1,4 +1,4 @@
-name: Compilando OSG (Intento 8 - Fix Indice)
+name: Compilando OSG (Final - Con Guardado)
 
 on: [push, workflow_dispatch]
 
@@ -15,24 +15,15 @@ jobs:
       - name: 2. Descargar OpenSceneGraph
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
-      - name: 3. 🩹 PARCHEAR Código (Cirugía Mayor)
+      - name: 3. 🩹 PARCHEAR Código
         run: |
           echo "Aplicando parches..."
-          
-          # PARCHE 1: Stat64 (Vital)
           sed -i 's/stat64/stat/g' osg_src/src/osgDB/FileUtils.cpp
           if [ -f osg_src/src/osgDB/FileNameUtils.cpp ]; then
              sed -i 's/stat64/stat/g' osg_src/src/osgDB/FileNameUtils.cpp
           fi
-
-          # PARCHE 2: AMPUTACIÓN LIMPIA DE OSC
-          # Primero borramos la carpeta física
           rm -rf osg_src/src/osgPlugins/osc
-          
-          # SEGUNDO (NUEVO): Borramos la referencia en el "índice"
-          # Esto busca la línea que intenta agregar 'osc' y la elimina del archivo CMakeLists.txt
           sed -i '/osc/d' osg_src/src/osgPlugins/CMakeLists.txt
-
           echo "✅ Código y referencias limpiadas."
 
       - name: 4. ✍️ Inyectar Toolchain
@@ -47,7 +38,6 @@ jobs:
           set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-          
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           EOF
@@ -57,8 +47,10 @@ jobs:
           mkdir osg_build
           cd osg_build
           
+          # CAMBIO 1: Agregamos CMAKE_INSTALL_PREFIX para ordenar la salida
           cmake ../osg_src \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
+            -DCMAKE_INSTALL_PREFIX="../osg_final" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_OSG_APPLICATIONS=OFF \
             -DBUILD_OSG_EXAMPLES=OFF \
@@ -80,10 +72,16 @@ jobs:
             -DSDL2_LIBRARY="$VITASDK/arm-vita-eabi/lib/libSDL2.a" \
             -G "Unix Makefiles"
 
-      - name: 6. Compilar
+      - name: 6. Compilar e INSTALAR
         run: |
           cd osg_build
           make -j$(nproc)
+          # CAMBIO 2: Esto mueve los archivos compilados a la carpeta "osg_final"
+          make install
 
-      - name: 7. Verificar Éxito
-        run: ls -lh osg_build/lib/libosg.a
+      - name: 7. 📤 SUBIR ARTEFACTO (Guardar Partida)
+        # CAMBIO 3: Subimos la carpeta "osg_final" a tu cuenta de GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: osg-vita-libs
+          path: osg_final/
