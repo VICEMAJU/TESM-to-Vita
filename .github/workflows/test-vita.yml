@@ -1,16 +1,23 @@
-name: Test de Potencia Vita
+name: Entorno PS Vita
 
 on: [push, workflow_dispatch]
 
 jobs:
-  check-server:
+  vita-check:
     runs-on: ubuntu-latest
+    # AQUÍ ESTÁ LA MAGIA:
+    # Le decimos a GitHub: "Usa una imagen que ya tenga las herramientas de Vita instaladas"
+    container: vitasdk/vitasdk:latest
+
     steps:
-      - name: Saludar
-        run: echo "¡Hola ViceMaju! Probando los servidores de GitHub."
+    - name: Descargar mi código
+      uses: actions/checkout@v4
 
-      - name: Ver espacio libre (Para comparar con mis 50GB)
-        run: df -h
+    - name: ¿Tengo el compilador de Vita?
+      # Este comando pregunta la versión del compilador de Vita.
+      # Si responde, significa que ya tenemos las herramientas listas.
+      run: arm-vita-eabi-gcc --version
 
-      - name: Ver cuántos núcleos tiene el procesador
-        run: nproc
+    - name: ¿Qué librerías tengo?
+      # Esto lista las librerías pre-instaladas en el contenedor (SDL, etc.)
+      run: ls $VITASDK/arm-vita-eabi/lib
