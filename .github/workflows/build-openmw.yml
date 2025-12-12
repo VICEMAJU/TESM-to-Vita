@@ -14,12 +14,14 @@ jobs:
       - name: 2. Descargar Código OpenMW (Tu Repo)
         uses: actions/checkout@v4
 
-      - name: 3. 📥 Descargar Motor Gráfico (Tu Artefacto)
-        uses: actions/download-artifact@v4
+      - name: 3. 📥 Descargar Motor Gráfico (Del Pasado)
+        uses: dawidd6/action-download-artifact@v3
         with:
-          name: osg-vita-libs
-          path: deps/osg  # Lo guardamos en una carpeta ordenada llamada "deps"
-
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          workflow: build-osg.yml   # Nombre del archivo del otro robot
+          name: osg-vita-libs       # Nombre exacto del archivo ZIP
+          path: deps/osg
+          
       - name: 4. 🏗️ Compilar Interfaz (MyGUI Rápido)
         # MyGUI es rápido, lo hacemos al vuelo para asegurarnos que sea compatible
         run: |
