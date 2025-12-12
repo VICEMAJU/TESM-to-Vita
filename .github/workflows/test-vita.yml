@@ -1,4 +1,4 @@
-name: Construyendo MyGUI (Intento 2)
+name: Construyendo MyGUI (Intento 3 - Auto-Detect)
 
 on: [push, workflow_dispatch]
 
@@ -8,36 +8,59 @@ jobs:
     container: vitasdk/vitasdk:latest
 
     steps:
-      - name: Instalar Make y Git
-        # Instalamos 'make' que es el constructor clásico
-        run: apk add --no-cache make git cmake
+      - name: 1. Instalar Herramientas (Modo Seguro)
+        # Este script intenta detectar qué sistema es e instala 'make' y 'cmake'
+        run: |
+          if command -v apk > /dev/null; then
+            echo "Sistema detectado: Alpine Linux"
+            apk update && apk add --no-cache make cmake git
+          elif command -v apt-get > /dev/null; then
+            echo "Sistema detectado: Ubuntu/Debian"
+            apt-get update && apt-get install -y make cmake git
+          else
+            echo "ERROR: No sé cómo instalar cosas en este sistema."
+            exit 1
+          fi
 
-      - name: 🕵️‍♂️ ESPIONAJE - Buscar el Toolchain
-        # Este comando buscará cualquier archivo .cmake dentro de la carpeta del SDK
-        # Así sabremos la ruta exacta si volvemos a fallar
-        run: find $VITASDK -name "*.cmake"
-
-      - name: Descargar MyGUI (Oficial)
+      - name: 2. Descargar MyGUI
         run: git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
 
-      - name: Configurar MyGUI
+      - name: 3. Configurar y Compilar (Con búsqueda automática)
         run: |
+          # BÚSQUEDA DEL TESORO: Buscamos el archivo del Toolchain
+          echo "Buscando archivo de configuración para Vita..."
+          TOOLCHAIN_PATH=$(find /usr/local -name "Toolchain-PSVita.cmake" | head -n 1)
+          
+          if [ -z "$TOOLCHAIN_PATH" ]; then
+             # Si no encuentra el primero, busca el alternativo
+             TOOLCHAIN_PATH=$(find /usr/local -name "vitasdk.cmake" | head -n 1)
+          fi
+
+          echo "¡Encontrado en: $TOOLCHAIN_PATH!"
+          
+          # Si aún así está vacío, fallamos con dignidad
+          if [ -z "$TOOLCHAIN_PATH" ]; then
+            echo "ERROR FATAL: No encuentro el archivo .cmake en ningún lado."
+            find /usr/local -maxdepth 4 # Muestra qué hay para depurar
+            exit 1
+          fi
+
           mkdir mygui_build
           cd mygui_build
-          # CAMBIO IMPORTANTE:
-          # 1. Usamos la ruta moderna: $VITASDK/share/vitasdk.cmake
-          # 2. Quitamos -G "Ninja" para que use Make por defecto
+          
+          # USAMOS LA RUTA ENCONTRADA
           cmake ../mygui_src \
-            -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vitasdk.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" \
             -DCMAKE_BUILD_TYPE=Release \
             -DMYGUI_RENDERSYSTEM=1 \
             -DMYGUI_BUILD_DEMOS=OFF \
             -DMYGUI_BUILD_TOOLS=OFF \
             -DMYGUI_BUILD_PLUGINS=OFF \
-            -DMYGUI_USE_FREETYPE=OFF 
+            -DMYGUI_USE_FREETYPE=OFF
+            
+          # COMPILAR
+          echo "Iniciando compilación..."
+          make -j$(nproc)
 
-      - name: Compilar
-        run: cmake --build mygui_build
-
-      - name: Verificar éxito
+      - name: 4. Verificar éxito
         run: ls -lh mygui_build/lib/libMyGUIEngine.a
