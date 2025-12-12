@@ -1,4 +1,4 @@
-name: Construyendo Dependencias (MyGUI)
+name: Construyendo MyGUI (Corregido)
 
 on: [push, workflow_dispatch]
 
@@ -8,18 +8,18 @@ jobs:
     container: vitasdk/vitasdk:latest
 
     steps:
-      # 1. Preparar herramientas básicas (CMake y Ninja son los albañiles)
-      - name: Instalar herramientas de construcción
-        run: apk add --no-cache cmake ninja git
+      - name: Instalar herramientas
+        # Intentamos instalar dependencias básicas si faltan
+        # Si falla apk, usamos apt-get por si acaso la imagen es Ubuntu
+        run: |
+          if command -v apk; then apk add --no-cache cmake ninja git; \
+          else apt-get update && apt-get install -y cmake ninja-build git; fi
 
-      # 2. Descargar el código fuente de MyGUI (Versión especial para Vita)
-      # Usamos un "fork" que ya se sabe que funciona en Vita para no sufrir tanto al principio
-      - name: Clonar MyGUI (Port de Vita)
-        run: git clone --depth 1 https://github.com/vitasdk/mygui.git mygui_src
+      - name: Descargar MyGUI (Oficial)
+        # CORRECCION: Usamos el repo oficial, no el inventado
+        run: git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
 
-      # 3. Configurar la compilación (La parte difícil)
-      # Le decimos a CMake: "No compiles para Linux, compila para VITA usando este Toolchain"
-      - name: Configurar MyGUI con CMake
+      - name: Configurar MyGUI para Vita
         run: |
           mkdir mygui_build
           cd mygui_build
@@ -30,12 +30,13 @@ jobs:
             -DMYGUI_BUILD_DEMOS=OFF \
             -DMYGUI_BUILD_TOOLS=OFF \
             -DMYGUI_BUILD_PLUGINS=OFF \
+            -DMYGUI_USE_FREETYPE=OFF \
             -G "Ninja"
+          # Nota: Desactivé FreeType temporalmente para evitar otro error si falta esa librería.
+          # Primero queremos ver si compila el código base.
 
-      # 4. ¡Compilar! (El momento de la verdad)
-      - name: Compilar MyGUI
+      - name: Compilar
         run: cmake --build mygui_build
 
-      # 5. Verificar si nació la librería
-      - name: ¿Se creó el archivo?
+      - name: Verificar éxito
         run: ls -lh mygui_build/lib/libMyGUIEngine.a
