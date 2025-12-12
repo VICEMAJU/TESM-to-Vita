@@ -13,7 +13,8 @@ jobs:
 
     steps:
       - name: 1. Instalar Herramientas
-        run: apk update && apk add --no-cache make cmake git pkgconf sed
+        # Agregamos python3 porque la compilación de ICU a veces lo pide
+        run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++
 
       - name: 2. Descargar Código OpenMW (Tu Repo)
         uses: actions/checkout@v4
@@ -39,7 +40,8 @@ jobs:
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4")
+          # Agregamos deps/icu a la lista de búsqueda
+          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu")
           EOF
 
       - name: 5. 🏗️ Compilar Interfaz (MyGUI)
@@ -48,7 +50,6 @@ jobs:
           git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
           mkdir mygui_build
           cd mygui_build
-          
           cmake ../mygui_src \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_INSTALL_PREFIX="../deps/mygui" \
@@ -59,7 +60,6 @@ jobs:
             -DMYGUI_BUILD_PLUGINS=OFF \
             -DMYGUI_USE_FREETYPE=OFF \
             -G "Unix Makefiles"
-            
           make -j$(nproc)
           make install
 
@@ -70,7 +70,6 @@ jobs:
           cd lz4_src/build/cmake
           mkdir build
           cd build
-          
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../../../../vita.cmake" \
             -DCMAKE_INSTALL_PREFIX="../../../../deps/lz4" \
@@ -78,19 +77,44 @@ jobs:
             -DLZ4_BUILD_CLI=OFF \
             -DLZ4_BUILD_LEGACY_LZ4C=OFF \
             -G "Unix Makefiles"
-            
           make -j$(nproc)
           make install
 
-      - name: 7. Configurar OpenMW
+      - name: 7. 🏗️ Compilar ICU (EL MONSTRUO)
+        # ICU necesita compilarse primero para Linux (Host) y luego para Vita (Cross)
+        run: |
+          echo "Descargando ICU..."
+          # Usamos una versión específica (55) que es más vieja pero más compatible y ligera
+          wget https://github.com/unicode-org/icu/releases/download/release-55-2/icu4c-55_2-src.tgz
+          tar -xzf icu4c-55_2-src.tgz
+          
+          echo "1. Construyendo herramientas para Linux (Host)..."
+          mkdir build-host
+          cd build-host
+          # Configuramos para Linux normal
+          ../icu/source/runConfigureICU Linux
+          make -j$(nproc)
+          cd ..
+          
+          echo "2. Construyendo librería para Vita (Target)..."
+          mkdir build-vita
+          cd build-vita
+          # Configuramos para Vita, diciéndole dónde están las herramientas de Linux (--with-cross-build)
+          # Desactivamos cosas que no sirven (dyload, shared libs)
+          ../icu/source/configure --host=arm-vita-eabi --prefix="$PWD/../deps/icu" \
+            --with-cross-build="$PWD/../build-host" \
+            --enable-static --disable-shared \
+            --disable-dyload --disable-tools --disable-tests --disable-samples
+            
+          make -j$(nproc)
+          make install
+          echo "✅ ICU Listo"
+
+      - name: 8. Configurar OpenMW
         run: |
           git config --global --add safe.directory "*"
           mkdir build
           cd build
-          
-          # AQUÍ ESTÁN LOS CAMBIOS IMPORTANTES:
-          # Desactivamos OPENCS (El editor) para no necesitar QT
-          # Desactivamos FFMPEG (Video) para evitar errores de codecs por ahora
           
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
@@ -106,12 +130,13 @@ jobs:
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
             -DOPENMW_USE_SYSTEM_LZ4=ON \
             -DOPENMW_USE_FFMPEG=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_collada_dom=TRUE \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -G "Unix Makefiles"
 
-      - name: 8. Compilar OpenMW
+      - name: 9. Compilar OpenMW
         run: |
           cd build
           make -j$(nproc)
