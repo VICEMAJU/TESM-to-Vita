@@ -1,4 +1,4 @@
-name: Compilando El Gigante (OSG) - Corregido
+name: Compilando OSG (Intento 3 - Rutas Forzadas)
 
 on: [push, workflow_dispatch]
 
@@ -12,10 +12,18 @@ jobs:
         run: |
           apk update && apk add --no-cache make cmake git pkgconf
 
-      - name: 2. Descargar OpenSceneGraph (Fork de OpenMW)
+      - name: 2. Descargar OpenSceneGraph
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
-      - name: 3. ✍️ Inyectar Toolchain (Modo Dios)
+      - name: 3. 🔍 Verificar nombres de librerías (Debug)
+        # Esto es vital. Queremos ver si se llaman libGLESv2.a o de otra forma.
+        run: |
+          echo "Buscando librerías gráficas..."
+          find $VITASDK/arm-vita-eabi/lib -name "*GLES*"
+          find $VITASDK/arm-vita-eabi/lib -name "*EGL*"
+          find $VITASDK/arm-vita-eabi/lib -name "*SDL2*"
+
+      - name: 4. ✍️ Inyectar Toolchain
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -31,10 +39,14 @@ jobs:
           set(CMAKE_C_FLAGS "-O3 -D__vita__")
           EOF
 
-      - name: 4. Configurar OSG
+      - name: 5. Configurar OSG (Hardcoded)
         run: |
           mkdir osg_build
           cd osg_build
+          
+          # AQUÍ ESTÁ EL CAMBIO:
+          # Definimos manualmente las rutas a las librerías que CMake no encuentra.
+          # Asumimos los nombres estándar del SDK.
           
           cmake ../osg_src \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
@@ -51,12 +63,18 @@ jobs:
             -DOPENTHREADS_ATOMIC_USE_MUTEX=ON \
             -DDYNAMIC_OPENTHREADS=OFF \
             -DDYNAMIC_OPENSCENEGRAPH=OFF \
+            -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
+            -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
+            -DEGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
+            -DEGL_LIBRARY="$VITASDK/arm-vita-eabi/lib/libEGL.a" \
+            -DSDL2_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include/SDL2" \
+            -DSDL2_LIBRARY="$VITASDK/arm-vita-eabi/lib/libSDL2.a" \
             -G "Unix Makefiles"
 
-      - name: 5. Compilar (Esto tardará unos 15-30 min)
+      - name: 6. Compilar
         run: |
           cd osg_build
           make -j$(nproc)
 
-      - name: 6. Verificar Éxito
+      - name: 7. Verificar Éxito
         run: ls -lh osg_build/lib/libosg.a
