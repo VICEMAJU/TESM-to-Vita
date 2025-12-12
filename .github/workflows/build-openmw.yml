@@ -26,8 +26,7 @@ jobs:
           name: osg-vita-libs
           path: deps/osg
 
-      - name: 4. ✍️ Inyectar Toolchain (LO MOVIMOS ARRIBA)
-        # Creamos el archivo de configuración AHORA para usarlo en todas las librerías
+      - name: 4. ✍️ Inyectar Toolchain
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -40,8 +39,6 @@ jobs:
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          # Le decimos a CMake donde buscar las librerías que vamos creando
-          # Agregamos deps/lz4 a la lista
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4")
           EOF
 
@@ -52,7 +49,6 @@ jobs:
           mkdir mygui_build
           cd mygui_build
           
-          # Ahora usamos ../vita.cmake que creamos en el paso 4
           cmake ../mygui_src \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_INSTALL_PREFIX="../deps/mygui" \
@@ -67,11 +63,10 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 6. 🏗️ Compilar LZ4 (NUEVO PASO)
+      - name: 6. 🏗️ Compilar LZ4
         run: |
           echo "Compilando LZ4..."
           git clone --depth 1 https://github.com/lz4/lz4.git lz4_src
-          # LZ4 es raro, su CMake está en una subcarpeta
           cd lz4_src/build/cmake
           mkdir build
           cd build
@@ -86,7 +81,6 @@ jobs:
             
           make -j$(nproc)
           make install
-          echo "✅ LZ4 Listo"
 
       - name: 7. Configurar OpenMW
         run: |
@@ -94,17 +88,24 @@ jobs:
           mkdir build
           cd build
           
+          # AQUÍ ESTÁN LOS CAMBIOS IMPORTANTES:
+          # Desactivamos OPENCS (El editor) para no necesitar QT
+          # Desactivamos FFMPEG (Video) para evitar errores de codecs por ahora
+          
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_OPENMW=ON \
+            -DBUILD_OPENCS=OFF \
             -DBUILD_WIZARD=OFF \
             -DBUILD_LAUNCHER=OFF \
             -DBUILD_ESSIMPORTER=OFF \
             -DBUILD_BSATOOL=OFF \
+            -DBUILD_UNITTESTS=OFF \
             -DOPENMW_USE_SYSTEM_OSG=ON \
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
             -DOPENMW_USE_SYSTEM_LZ4=ON \
+            -DOPENMW_USE_FFMPEG=OFF \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
