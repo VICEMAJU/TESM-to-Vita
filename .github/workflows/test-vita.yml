@@ -1,0 +1,16 @@
+name: Test de Potencia Vita
+
+on: [push, workflow_dispatch]
+
+jobs:
+  check-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Saludar
+        run: echo "¡Hola ViceMaju! Probando los servidores de GitHub."
+
+      - name: Ver espacio libre (Para comparar con mis 50GB)
+        run: df -h
+
+      - name: Ver cuántos núcleos tiene el procesador
+        run: nproc
