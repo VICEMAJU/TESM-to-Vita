@@ -2,6 +2,13 @@ name: FASE 3 - Compilando OpenMW
 
 on: [push, workflow_dispatch]
 
+# --- AQUÍ ESTÁ EL ARREGLO ---
+# Le damos permisos explícitos al robot para leer el historial y bajar cosas
+permissions:
+  actions: read       # Necesario para que dawidd6 lea los logs del otro robot
+  contents: write     # Necesario para descargar código y subir cosas
+# ----------------------------
+
 jobs:
   build-game:
     runs-on: ubuntu-latest
@@ -18,19 +25,17 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
-          workflow: build-osg.yml   # Nombre del archivo del otro robot
-          name: osg-vita-libs       # Nombre exacto del archivo ZIP
-          path: deps/osg
-          
+          workflow: build-osg.yml   # El nombre del archivo del OTRO robot
+          name: osg-vita-libs       # El nombre del ZIP que creamos antes
+          path: deps/osg            # Dónde lo guardamos
+
       - name: 4. 🏗️ Compilar Interfaz (MyGUI Rápido)
-        # MyGUI es rápido, lo hacemos al vuelo para asegurarnos que sea compatible
         run: |
           echo "Compilando MyGUI..."
           git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
           mkdir mygui_build
           cd mygui_build
           
-          # Configuración manual rápida
           cmake ../mygui_src \
             -DCMAKE_SYSTEM_NAME=Generic \
             -DCMAKE_SYSTEM_PROCESSOR=arm \
@@ -52,7 +57,6 @@ jobs:
           echo "✅ MyGUI compilado e instalado en deps/mygui"
 
       - name: 5. ✍️ Inyectar Toolchain Maestro
-        # Este es el archivo que le dice a OpenMW dónde está todo
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -62,12 +66,10 @@ jobs:
           set(CMAKE_CXX_COMPILER arm-vita-eabi-g++)
           set(CMAKE_FIND_ROOT_PATH "\$ENV{VITASDK}/arm-vita-eabi")
           
-          # Banderas vitales para Vita
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          # ¡AQUÍ ESTÁ LA MAGIA!
-          # Le decimos a CMake: "Busca librerías en estas carpetas que creé"
+          # Le decimos a CMake donde buscar las librerías descargadas
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui")
           EOF
 
@@ -76,7 +78,6 @@ jobs:
           mkdir build
           cd build
           
-          # Intentamos configurar el juego desactivando todo lo que no sea esencial
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
