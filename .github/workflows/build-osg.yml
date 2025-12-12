@@ -1,4 +1,4 @@
-name: Compilando OSG (Intento 7 - Amputacion OSC)
+name: Compilando OSG (Intento 8 - Fix Indice)
 
 on: [push, workflow_dispatch]
 
@@ -15,22 +15,25 @@ jobs:
       - name: 2. Descargar OpenSceneGraph
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
-      - name: 3. 🩹 PARCHEAR y AMPUTAR
+      - name: 3. 🩹 PARCHEAR Código (Cirugía Mayor)
         run: |
           echo "Aplicando parches..."
           
-          # PARCHE 1: Eliminar stat64 (Cirugía vital)
+          # PARCHE 1: Stat64 (Vital)
           sed -i 's/stat64/stat/g' osg_src/src/osgDB/FileUtils.cpp
           if [ -f osg_src/src/osgDB/FileNameUtils.cpp ]; then
              sed -i 's/stat64/stat/g' osg_src/src/osgDB/FileNameUtils.cpp
           fi
 
-          # AMPUTACIÓN: Borrar plugins inútiles que dan error
-          # OSC (Open Sound Control) falla por Endianness. No lo necesitamos.
-          echo "Borrando plugin OSC..."
+          # PARCHE 2: AMPUTACIÓN LIMPIA DE OSC
+          # Primero borramos la carpeta física
           rm -rf osg_src/src/osgPlugins/osc
+          
+          # SEGUNDO (NUEVO): Borramos la referencia en el "índice"
+          # Esto busca la línea que intenta agregar 'osc' y la elimina del archivo CMakeLists.txt
+          sed -i '/osc/d' osg_src/src/osgPlugins/CMakeLists.txt
 
-          echo "✅ Código listo."
+          echo "✅ Código y referencias limpiadas."
 
       - name: 4. ✍️ Inyectar Toolchain
         run: |
