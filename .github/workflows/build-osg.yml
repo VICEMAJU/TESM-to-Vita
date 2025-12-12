@@ -1,0 +1,68 @@
+name: Compilando El Gigante (OSG)
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build-osg:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+
+    steps:
+      - name: 1. Instalar Herramientas
+        run: |
+          apk update && apk add --no-cache make cmake git pkgconf
+
+      - name: 2. Descargar OpenSceneGraph (Fork de OpenMW)
+        # OJO: No usamos el OSG normal. Usamos el modificado por OpenMW
+        # porque tiene arreglos específicos para juegos.
+        run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
+
+      - name: 3. ✍️ Inyectar Toolchain (Modo Dios)
+        run: |
+          cat <<EOF > vita.cmake
+          set(CMAKE_SYSTEM_NAME Generic)
+          set(CMAKE_SYSTEM_PROCESSOR arm)
+          set(CMAKE_CROSSCOMPILING TRUE)
+          set(CMAKE_C_COMPILER arm-vita-eabi-gcc)
+          set(CMAKE_CXX_COMPILER arm-vita-eabi-g++)
+          set(CMAKE_FIND_ROOT_PATH "\$ENV{VITASDK}/arm-vita-eabi")
+          set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+          set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+          set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+          
+          # Optimizaciones para que no tarde 3 horas
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__")
+          EOF
+
+      - name: 4. Configurar OSG
+        run: |
+          mkdir osg_build
+          cd osg_build
+          
+          # OSG tiene MIL opciones. Desactivamos lo que no sirve en Vita.
+          cmake ../osg_src \
+            -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_OSG_APPLICATIONS=OFF \
+            -DBUILD_OSG_EXAMPLES=OFF \
+            -DOPENGL_PROFILE=GLES2 \
+            -DOSG_WINDOWING_SYSTEM=None \
+            -DOSG_GL1_AVAILABLE=OFF \
+            -DOSG_GL2_AVAILABLE=OFF \
+            -DOSG_GLES1_AVAILABLE=OFF \
+            -DOSG_GLES2_AVAILABLE=ON \
+            -DOSG_GL_DISPLAYLISTS_AVAILABLE=OFF \
+            -DOPENTHREADS_ATOMIC_USE_MUTEX=ON \
+            -GDYNAMIC_OPENTHREADS=OFF \
+            -GDYNAMIC_OPENSCENEGRAPH=OFF \
+            -G "Unix Makefiles"
+
+      - name: 5. Compilar (Prepara café, esto tardará)
+        run: |
+          cd osg_build
+          # Usamos todos los núcleos (-j) para ir rápido
+          make -j$(nproc)
+
+      - name: 6. Verificar Éxito
+        run: ls -lh osg_build/lib/libosg.a
