@@ -2,12 +2,9 @@ name: FASE 3 - Compilando OpenMW
 
 on: [push, workflow_dispatch]
 
-# --- AQUÍ ESTÁ EL ARREGLO ---
-# Le damos permisos explícitos al robot para leer el historial y bajar cosas
 permissions:
-  actions: read       # Necesario para que dawidd6 lea los logs del otro robot
-  contents: write     # Necesario para descargar código y subir cosas
-# ----------------------------
+  actions: read
+  contents: write
 
 jobs:
   build-game:
@@ -25,9 +22,9 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           github_token: ${{secrets.GITHUB_TOKEN}}
-          workflow: build-osg.yml   # El nombre del archivo del OTRO robot
-          name: osg-vita-libs       # El nombre del ZIP que creamos antes
-          path: deps/osg            # Dónde lo guardamos
+          workflow: build-osg.yml
+          name: osg-vita-libs
+          path: deps/osg
 
       - name: 4. 🏗️ Compilar Interfaz (MyGUI Rápido)
         run: |
@@ -69,15 +66,18 @@ jobs:
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          # Le decimos a CMake donde buscar las librerías descargadas
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui")
           EOF
 
       - name: 6. Configurar OpenMW
         run: |
+          # ARREGLO 1: Permitir a Git confiar en la carpeta
+          git config --global --add safe.directory "*"
+          
           mkdir build
           cd build
           
+          # ARREGLO 2: Forzar OpenGL ES como si fuera OpenGL normal
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -88,6 +88,9 @@ jobs:
             -DBUILD_BSATOOL=OFF \
             -DOPENMW_USE_SYSTEM_OSG=ON \
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
+            -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
+            -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
+            -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -G "Unix Makefiles"
 
       - name: 7. Compilar OpenMW
