@@ -1,4 +1,4 @@
-name: Compilando OSG (Intento 3 - Rutas Forzadas)
+name: Compilando OSG (Intento 4 - Parche PATH_MAX)
 
 on: [push, workflow_dispatch]
 
@@ -15,15 +15,7 @@ jobs:
       - name: 2. Descargar OpenSceneGraph
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
-      - name: 3. 🔍 Verificar nombres de librerías (Debug)
-        # Esto es vital. Queremos ver si se llaman libGLESv2.a o de otra forma.
-        run: |
-          echo "Buscando librerías gráficas..."
-          find $VITASDK/arm-vita-eabi/lib -name "*GLES*"
-          find $VITASDK/arm-vita-eabi/lib -name "*EGL*"
-          find $VITASDK/arm-vita-eabi/lib -name "*SDL2*"
-
-      - name: 4. ✍️ Inyectar Toolchain
+      - name: 3. ✍️ Inyectar Toolchain (Con Parche)
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -35,18 +27,18 @@ jobs:
           set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-          set(CMAKE_CXX_FLAGS "-O3 -D__vita__")
-          set(CMAKE_C_FLAGS "-O3 -D__vita__")
+          
+          # AQUÍ ESTÁ EL ARREGLO:
+          # Agregamos -DPATH_MAX=4096 para que el compilador sepa el tamaño
+          # Agregamos -DNO_WORDEXP porque Vita tampoco tiene esa función
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           EOF
 
-      - name: 5. Configurar OSG (Hardcoded)
+      - name: 4. Configurar OSG
         run: |
           mkdir osg_build
           cd osg_build
-          
-          # AQUÍ ESTÁ EL CAMBIO:
-          # Definimos manualmente las rutas a las librerías que CMake no encuentra.
-          # Asumimos los nombres estándar del SDK.
           
           cmake ../osg_src \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
@@ -71,10 +63,10 @@ jobs:
             -DSDL2_LIBRARY="$VITASDK/arm-vita-eabi/lib/libSDL2.a" \
             -G "Unix Makefiles"
 
-      - name: 6. Compilar
+      - name: 5. Compilar
         run: |
           cd osg_build
           make -j$(nproc)
 
-      - name: 7. Verificar Éxito
+      - name: 6. Verificar Éxito
         run: ls -lh osg_build/lib/libosg.a
