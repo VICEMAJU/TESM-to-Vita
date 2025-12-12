@@ -1,0 +1,93 @@
+name: FASE 3 - Compilando OpenMW
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build-game:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+
+    steps:
+      - name: 1. Instalar Herramientas
+        run: apk update && apk add --no-cache make cmake git pkgconf sed
+
+      - name: 2. Descargar Código OpenMW (Tu Repo)
+        uses: actions/checkout@v4
+
+      - name: 3. 📥 Descargar Motor Gráfico (Tu Artefacto)
+        uses: actions/download-artifact@v4
+        with:
+          name: osg-vita-libs
+          path: deps/osg  # Lo guardamos en una carpeta ordenada llamada "deps"
+
+      - name: 4. 🏗️ Compilar Interfaz (MyGUI Rápido)
+        # MyGUI es rápido, lo hacemos al vuelo para asegurarnos que sea compatible
+        run: |
+          echo "Compilando MyGUI..."
+          git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
+          mkdir mygui_build
+          cd mygui_build
+          
+          # Configuración manual rápida
+          cmake ../mygui_src \
+            -DCMAKE_SYSTEM_NAME=Generic \
+            -DCMAKE_SYSTEM_PROCESSOR=arm \
+            -DCMAKE_CROSSCOMPILING=TRUE \
+            -DCMAKE_C_COMPILER=arm-vita-eabi-gcc \
+            -DCMAKE_CXX_COMPILER=arm-vita-eabi-g++ \
+            -DCMAKE_FIND_ROOT_PATH="$VITASDK/arm-vita-eabi" \
+            -DCMAKE_INSTALL_PREFIX="../deps/mygui" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMYGUI_RENDERSYSTEM=1 \
+            -DMYGUI_BUILD_DEMOS=OFF \
+            -DMYGUI_BUILD_TOOLS=OFF \
+            -DMYGUI_BUILD_PLUGINS=OFF \
+            -DMYGUI_USE_FREETYPE=OFF \
+            -G "Unix Makefiles"
+            
+          make -j$(nproc)
+          make install
+          echo "✅ MyGUI compilado e instalado en deps/mygui"
+
+      - name: 5. ✍️ Inyectar Toolchain Maestro
+        # Este es el archivo que le dice a OpenMW dónde está todo
+        run: |
+          cat <<EOF > vita.cmake
+          set(CMAKE_SYSTEM_NAME Generic)
+          set(CMAKE_SYSTEM_PROCESSOR arm)
+          set(CMAKE_CROSSCOMPILING TRUE)
+          set(CMAKE_C_COMPILER arm-vita-eabi-gcc)
+          set(CMAKE_CXX_COMPILER arm-vita-eabi-g++)
+          set(CMAKE_FIND_ROOT_PATH "\$ENV{VITASDK}/arm-vita-eabi")
+          
+          # Banderas vitales para Vita
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
+          
+          # ¡AQUÍ ESTÁ LA MAGIA!
+          # Le decimos a CMake: "Busca librerías en estas carpetas que creé"
+          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui")
+          EOF
+
+      - name: 6. Configurar OpenMW
+        run: |
+          mkdir build
+          cd build
+          
+          # Intentamos configurar el juego desactivando todo lo que no sea esencial
+          cmake .. \
+            -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_OPENMW=ON \
+            -DBUILD_WIZARD=OFF \
+            -DBUILD_LAUNCHER=OFF \
+            -DBUILD_ESSIMPORTER=OFF \
+            -DBUILD_BSATOOL=OFF \
+            -DOPENMW_USE_SYSTEM_OSG=ON \
+            -DOPENMW_USE_SYSTEM_MYGUI=ON \
+            -G "Unix Makefiles"
+
+      - name: 7. Compilar OpenMW
+        run: |
+          cd build
+          make -j$(nproc)
