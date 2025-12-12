@@ -1,4 +1,4 @@
-name: Compilando OSG (Intento 4 - Parche PATH_MAX)
+name: Compilando OSG (Intento 5 - Fix stat64)
 
 on: [push, workflow_dispatch]
 
@@ -15,7 +15,7 @@ jobs:
       - name: 2. Descargar OpenSceneGraph
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
-      - name: 3. ✍️ Inyectar Toolchain (Con Parche)
+      - name: 3. ✍️ Inyectar Toolchain (Con Parche stat64)
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -28,11 +28,14 @@ jobs:
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
           
-          # AQUÍ ESTÁ EL ARREGLO:
-          # Agregamos -DPATH_MAX=4096 para que el compilador sepa el tamaño
-          # Agregamos -DNO_WORDEXP porque Vita tampoco tiene esa función
-          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
-          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
+          # AQUÍ ESTÁN LOS ARREGLOS ACUMULADOS:
+          # 1. -D__vita__ : Define la plataforma
+          # 2. -DPATH_MAX=4096 : Arregla el error anterior de rutas
+          # 3. -DNO_WORDEXP : Desactiva funciones de shell que Vita no tiene
+          # 4. -Dstat64=stat : EL NUEVO ARREGLO. Convierte stat64 en stat normal.
+          
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Dstat64=stat")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Dstat64=stat")
           EOF
 
       - name: 4. Configurar OSG
