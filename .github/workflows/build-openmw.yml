@@ -26,34 +26,8 @@ jobs:
           name: osg-vita-libs
           path: deps/osg
 
-      - name: 4. 🏗️ Compilar Interfaz (MyGUI Rápido)
-        run: |
-          echo "Compilando MyGUI..."
-          git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
-          mkdir mygui_build
-          cd mygui_build
-          
-          cmake ../mygui_src \
-            -DCMAKE_SYSTEM_NAME=Generic \
-            -DCMAKE_SYSTEM_PROCESSOR=arm \
-            -DCMAKE_CROSSCOMPILING=TRUE \
-            -DCMAKE_C_COMPILER=arm-vita-eabi-gcc \
-            -DCMAKE_CXX_COMPILER=arm-vita-eabi-g++ \
-            -DCMAKE_FIND_ROOT_PATH="$VITASDK/arm-vita-eabi" \
-            -DCMAKE_INSTALL_PREFIX="../deps/mygui" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DMYGUI_RENDERSYSTEM=1 \
-            -DMYGUI_BUILD_DEMOS=OFF \
-            -DMYGUI_BUILD_TOOLS=OFF \
-            -DMYGUI_BUILD_PLUGINS=OFF \
-            -DMYGUI_USE_FREETYPE=OFF \
-            -G "Unix Makefiles"
-            
-          make -j$(nproc)
-          make install
-          echo "✅ MyGUI compilado e instalado en deps/mygui"
-
-      - name: 5. ✍️ Inyectar Toolchain Maestro
+      - name: 4. ✍️ Inyectar Toolchain (LO MOVIMOS ARRIBA)
+        # Creamos el archivo de configuración AHORA para usarlo en todas las librerías
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -66,18 +40,60 @@ jobs:
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui")
+          # Le decimos a CMake donde buscar las librerías que vamos creando
+          # Agregamos deps/lz4 a la lista
+          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4")
           EOF
 
-      - name: 6. Configurar OpenMW
+      - name: 5. 🏗️ Compilar Interfaz (MyGUI)
         run: |
-          # ARREGLO 1: Permitir a Git confiar en la carpeta
-          git config --global --add safe.directory "*"
+          echo "Compilando MyGUI..."
+          git clone --depth 1 https://github.com/MyGUI/mygui.git mygui_src
+          mkdir mygui_build
+          cd mygui_build
           
+          # Ahora usamos ../vita.cmake que creamos en el paso 4
+          cmake ../mygui_src \
+            -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
+            -DCMAKE_INSTALL_PREFIX="../deps/mygui" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMYGUI_RENDERSYSTEM=1 \
+            -DMYGUI_BUILD_DEMOS=OFF \
+            -DMYGUI_BUILD_TOOLS=OFF \
+            -DMYGUI_BUILD_PLUGINS=OFF \
+            -DMYGUI_USE_FREETYPE=OFF \
+            -G "Unix Makefiles"
+            
+          make -j$(nproc)
+          make install
+
+      - name: 6. 🏗️ Compilar LZ4 (NUEVO PASO)
+        run: |
+          echo "Compilando LZ4..."
+          git clone --depth 1 https://github.com/lz4/lz4.git lz4_src
+          # LZ4 es raro, su CMake está en una subcarpeta
+          cd lz4_src/build/cmake
           mkdir build
           cd build
           
-          # ARREGLO 2: Forzar OpenGL ES como si fuera OpenGL normal
+          cmake .. \
+            -DCMAKE_TOOLCHAIN_FILE="../../../../vita.cmake" \
+            -DCMAKE_INSTALL_PREFIX="../../../../deps/lz4" \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLZ4_BUILD_CLI=OFF \
+            -DLZ4_BUILD_LEGACY_LZ4C=OFF \
+            -G "Unix Makefiles"
+            
+          make -j$(nproc)
+          make install
+          echo "✅ LZ4 Listo"
+
+      - name: 7. Configurar OpenMW
+        run: |
+          git config --global --add safe.directory "*"
+          mkdir build
+          cd build
+          
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -88,12 +104,13 @@ jobs:
             -DBUILD_BSATOOL=OFF \
             -DOPENMW_USE_SYSTEM_OSG=ON \
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
+            -DOPENMW_USE_SYSTEM_LZ4=ON \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -G "Unix Makefiles"
 
-      - name: 7. Compilar OpenMW
+      - name: 8. Compilar OpenMW
         run: |
           cd build
           make -j$(nproc)
