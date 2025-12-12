@@ -1,4 +1,4 @@
-name: Compilando El Gigante (OSG)
+name: Compilando El Gigante (OSG) - Corregido
 
 on: [push, workflow_dispatch]
 
@@ -13,8 +13,6 @@ jobs:
           apk update && apk add --no-cache make cmake git pkgconf
 
       - name: 2. Descargar OpenSceneGraph (Fork de OpenMW)
-        # OJO: No usamos el OSG normal. Usamos el modificado por OpenMW
-        # porque tiene arreglos específicos para juegos.
         run: git clone --depth 1 -b 3.6 https://github.com/OpenMW/osg.git osg_src
 
       - name: 3. ✍️ Inyectar Toolchain (Modo Dios)
@@ -29,8 +27,6 @@ jobs:
           set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-          
-          # Optimizaciones para que no tarde 3 horas
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__")
           set(CMAKE_C_FLAGS "-O3 -D__vita__")
           EOF
@@ -40,7 +36,6 @@ jobs:
           mkdir osg_build
           cd osg_build
           
-          # OSG tiene MIL opciones. Desactivamos lo que no sirve en Vita.
           cmake ../osg_src \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -54,14 +49,13 @@ jobs:
             -DOSG_GLES2_AVAILABLE=ON \
             -DOSG_GL_DISPLAYLISTS_AVAILABLE=OFF \
             -DOPENTHREADS_ATOMIC_USE_MUTEX=ON \
-            -GDYNAMIC_OPENTHREADS=OFF \
-            -GDYNAMIC_OPENSCENEGRAPH=OFF \
+            -DDYNAMIC_OPENTHREADS=OFF \
+            -DDYNAMIC_OPENSCENEGRAPH=OFF \
             -G "Unix Makefiles"
 
-      - name: 5. Compilar (Prepara café, esto tardará)
+      - name: 5. Compilar (Esto tardará unos 15-30 min)
         run: |
           cd osg_build
-          # Usamos todos los núcleos (-j) para ir rápido
           make -j$(nproc)
 
       - name: 6. Verificar Éxito
