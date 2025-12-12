@@ -1,23 +1,41 @@
-name: Entorno PS Vita
+name: Construyendo Dependencias (MyGUI)
 
 on: [push, workflow_dispatch]
 
 jobs:
-  vita-check:
+  build-mygui:
     runs-on: ubuntu-latest
-    # AQUÍ ESTÁ LA MAGIA:
-    # Le decimos a GitHub: "Usa una imagen que ya tenga las herramientas de Vita instaladas"
     container: vitasdk/vitasdk:latest
 
     steps:
-    - name: Descargar mi código
-      uses: actions/checkout@v4
+      # 1. Preparar herramientas básicas (CMake y Ninja son los albañiles)
+      - name: Instalar herramientas de construcción
+        run: apk add --no-cache cmake ninja git
 
-    - name: ¿Tengo el compilador de Vita?
-      # Este comando pregunta la versión del compilador de Vita.
-      # Si responde, significa que ya tenemos las herramientas listas.
-      run: arm-vita-eabi-gcc --version
+      # 2. Descargar el código fuente de MyGUI (Versión especial para Vita)
+      # Usamos un "fork" que ya se sabe que funciona en Vita para no sufrir tanto al principio
+      - name: Clonar MyGUI (Port de Vita)
+        run: git clone --depth 1 https://github.com/vitasdk/mygui.git mygui_src
 
-    - name: ¿Qué librerías tengo?
-      # Esto lista las librerías pre-instaladas en el contenedor (SDL, etc.)
-      run: ls $VITASDK/arm-vita-eabi/lib
+      # 3. Configurar la compilación (La parte difícil)
+      # Le decimos a CMake: "No compiles para Linux, compila para VITA usando este Toolchain"
+      - name: Configurar MyGUI con CMake
+        run: |
+          mkdir mygui_build
+          cd mygui_build
+          cmake ../mygui_src \
+            -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/kds/cmake/Toolchain-PSVita.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMYGUI_RENDERSYSTEM=1 \
+            -DMYGUI_BUILD_DEMOS=OFF \
+            -DMYGUI_BUILD_TOOLS=OFF \
+            -DMYGUI_BUILD_PLUGINS=OFF \
+            -G "Ninja"
+
+      # 4. ¡Compilar! (El momento de la verdad)
+      - name: Compilar MyGUI
+        run: cmake --build mygui_build
+
+      # 5. Verificar si nació la librería
+      - name: ¿Se creó el archivo?
+        run: ls -lh mygui_build/lib/libMyGUIEngine.a
