@@ -13,7 +13,6 @@ jobs:
 
     steps:
       - name: 1. Instalar Herramientas
-        # Agregamos python3 porque la compilación de ICU a veces lo pide
         run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++
 
       - name: 2. Descargar Código OpenMW (Tu Repo)
@@ -40,7 +39,6 @@ jobs:
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          # Agregamos deps/icu a la lista de búsqueda
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu")
           EOF
 
@@ -81,17 +79,14 @@ jobs:
           make install
 
       - name: 7. 🏗️ Compilar ICU (EL MONSTRUO)
-        # ICU necesita compilarse primero para Linux (Host) y luego para Vita (Cross)
         run: |
           echo "Descargando ICU..."
-          # Usamos una versión específica (55) que es más vieja pero más compatible y ligera
           wget https://github.com/unicode-org/icu/releases/download/release-55-2/icu4c-55_2-src.tgz
           tar -xzf icu4c-55_2-src.tgz
           
           echo "1. Construyendo herramientas para Linux (Host)..."
           mkdir build-host
           cd build-host
-          # Configuramos para Linux normal
           ../icu/source/runConfigureICU Linux
           make -j$(nproc)
           cd ..
@@ -99,8 +94,16 @@ jobs:
           echo "2. Construyendo librería para Vita (Target)..."
           mkdir build-vita
           cd build-vita
-          # Configuramos para Vita, diciéndole dónde están las herramientas de Linux (--with-cross-build)
-          # Desactivamos cosas que no sirven (dyload, shared libs)
+          
+          # --- ARREGLO PARA EL ERROR ---
+          # Copiamos la configuración de Linux a "mh-unknown" como pidió el error
+          cp ../icu/source/config/mh-linux ../icu/source/config/mh-unknown
+          # -----------------------------
+          
+          # Forzamos los compiladores explícitamente antes de configurar
+          export CC=arm-vita-eabi-gcc
+          export CXX=arm-vita-eabi-g++
+          
           ../icu/source/configure --host=arm-vita-eabi --prefix="$PWD/../deps/icu" \
             --with-cross-build="$PWD/../build-host" \
             --enable-static --disable-shared \
