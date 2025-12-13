@@ -95,12 +95,7 @@ jobs:
           mkdir build-vita
           cd build-vita
           
-          # --- ARREGLO PARA EL ERROR ---
-          # Copiamos la configuración de Linux a "mh-unknown" como pidió el error
           cp ../icu/source/config/mh-linux ../icu/source/config/mh-unknown
-          # -----------------------------
-          
-          # Forzamos los compiladores explícitamente antes de configurar
           export CC=arm-vita-eabi-gcc
           export CXX=arm-vita-eabi-g++
           
@@ -111,7 +106,6 @@ jobs:
             
           make -j$(nproc)
           make install
-          echo "✅ ICU Listo"
 
       - name: 8. Configurar OpenMW
         run: |
@@ -133,6 +127,7 @@ jobs:
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
             -DOPENMW_USE_SYSTEM_LZ4=ON \
             -DOPENMW_USE_FFMPEG=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_FFmpeg=TRUE \
             -DCMAKE_DISABLE_FIND_PACKAGE_collada_dom=TRUE \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
