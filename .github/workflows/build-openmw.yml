@@ -112,17 +112,14 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍA A FFMPEG (Parte 2) ---
-          # 1. Quitamos la palabra REQUIRED
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
-          
-          # 2. (NUEVO) Borramos la línea que da el error fatal "FFmpeg was not found"
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
-          # ------------------------------------
           
           mkdir build
           cd build
           
+          # --- ARREGLO PARA BULLET ---
+          # Agregamos -DOPENMW_USE_DOUBLE_PRECISION=OFF
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -137,6 +134,7 @@ jobs:
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
             -DOPENMW_USE_SYSTEM_LZ4=ON \
             -DOPENMW_USE_FFMPEG=OFF \
+            -DOPENMW_USE_DOUBLE_PRECISION=OFF \
             -DCMAKE_DISABLE_FIND_PACKAGE_FFmpeg=TRUE \
             -DCMAKE_DISABLE_FIND_PACKAGE_collada_dom=TRUE \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
