@@ -112,16 +112,17 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍA A FFMPEG (Quitar "REQUIRED") ---
+          # --- LOBOTOMÍA A FFMPEG (Parte 2) ---
+          # 1. Quitamos la palabra REQUIRED
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
-          # ---------------------------------------------
+          
+          # 2. (NUEVO) Borramos la línea que da el error fatal "FFmpeg was not found"
+          sed -i '/FFmpeg was not found/d' CMakeLists.txt
+          # ------------------------------------
           
           mkdir build
           cd build
           
-          # --- COMBINACIÓN GANADORA ---
-          # 1. Ya quitamos REQUIRED con sed arriba
-          # 2. Ahora ponemos CMAKE_DISABLE... para que NO lo busque
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
