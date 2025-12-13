@@ -125,6 +125,7 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
+          # Lobotomías habituales
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
@@ -132,7 +133,7 @@ jobs:
           mkdir build
           cd build
           
-          # --- CAMBIOS IMPORTANTES AQUÍ ABAJO (Rutas de instalación) ---
+          # --- AQUÍ ESTÁ EL BOMBARDEO DE RUTAS ---
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -161,10 +162,18 @@ jobs:
             -DOPENTHREADS_INCLUDE_DIR="$(pwd)/../deps/osg/include" \
             -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
             -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
+            -DCMAKE_INSTALL_PREFIX="./install" \
+            -DCMAKE_INSTALL_BINDIR=bin \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_INSTALL_DATAROOTDIR=share \
+            -DCMAKE_INSTALL_SYSCONFDIR=etc \
             -DBINDIR=bin \
             -DLIBDIR=lib \
             -DDATAROOTDIR=share \
             -DSYSCONFDIR=etc \
+            -DMAN_PATH=share/man \
+            -DDOCDIR=share/doc \
+            -DGLOBAL_DATA_PATH="share" \
             -G "Unix Makefiles"
 
       - name: 10. Compilar OpenMW
