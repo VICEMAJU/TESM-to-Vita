@@ -116,14 +116,14 @@ jobs:
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           
-          # --- LOBOTOMÍA A BULLET (NUEVO) ---
-          # Borramos la línea que causa el error "Bullet does not uses double precision"
+          # --- LOBOTOMÍA A BULLET ---
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
-          # ----------------------------------
           
           mkdir build
           cd build
           
+          # --- ARREGLO OPENTHREADS (NUEVO) ---
+          # Le decimos exactamente donde está OpenThreads dentro de la carpeta deps/osg
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -144,6 +144,8 @@ jobs:
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
+            -DOPENTHREADS_LIBRARY="$PWD/../deps/osg/lib/libOpenThreads.a" \
+            -DOPENTHREADS_INCLUDE_DIR="$PWD/../deps/osg/include" \
             -G "Unix Makefiles"
 
       - name: 9. Compilar OpenMW
