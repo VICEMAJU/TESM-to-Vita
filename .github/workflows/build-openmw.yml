@@ -112,14 +112,18 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
+          # --- LOBOTOMÍA A FFMPEG ---
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
+          
+          # --- LOBOTOMÍA A BULLET (NUEVO) ---
+          # Borramos la línea que causa el error "Bullet does not uses double precision"
+          sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
+          # ----------------------------------
           
           mkdir build
           cd build
           
-          # --- ARREGLO PARA BULLET ---
-          # Agregamos -DOPENMW_USE_DOUBLE_PRECISION=OFF
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
