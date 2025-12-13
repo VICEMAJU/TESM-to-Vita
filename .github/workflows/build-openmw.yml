@@ -13,7 +13,6 @@ jobs:
 
     steps:
       - name: 1. Instalar Herramientas
-        # Agregamos 'zip' para descomprimir SQLite
         run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++ zip
 
       - name: 2. Descargar Código OpenMW (Tu Repo)
@@ -79,19 +78,24 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 7. 🏗️ Compilar SQLite (NUEVO)
+      - name: 7. 🏗️ Compilar SQLite (EL FANTASMA)
         run: |
           echo "Compilando SQLite3..."
-          # Descargamos el código fuente "amalgamation" (un solo archivo C)
           wget https://www.sqlite.org/2023/sqlite-amalgamation-3420000.zip
           unzip sqlite-amalgamation-3420000.zip
           cd sqlite-amalgamation-3420000
           
-          # Compilamos manualmente para Vita
-          arm-vita-eabi-gcc -O3 -D__vita__ -c sqlite3.c -o sqlite3.o
+          # --- TRUCO DEL FANTASMA ---
+          # Creamos la carpeta y el archivo que faltan, vacíos, para engañar al compilador
+          mkdir sys
+          touch sys/ioctl.h
+          # --------------------------
+          
+          # Compilamos añadiendo -I. para que encuentre nuestra carpeta 'sys' falsa
+          # También desactivamos WAL y extensiones para evitar errores de linkeo
+          arm-vita-eabi-gcc -O3 -D__vita__ -I. -DSQLITE_OMIT_WAL -DSQLITE_OMIT_LOAD_EXTENSION -c sqlite3.c -o sqlite3.o
           arm-vita-eabi-ar rcs libsqlite3.a sqlite3.o
           
-          # Instalamos en nuestra carpeta deps
           mkdir -p ../deps/sqlite/include
           mkdir -p ../deps/sqlite/lib
           cp sqlite3.h ../deps/sqlite/include/
@@ -133,12 +137,13 @@ jobs:
           mkdir build
           cd build
           
-          # --- AÑADIMOS SQLITE A LA CONFIGURACIÓN ---
+          # --- AÑADIMOS -DBUILD_LUA=OFF ---
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_OPENMW=ON \
             -DBUILD_OPENCS=OFF \
+            -DBUILD_LUA=OFF \
             -DBUILD_WIZARD=OFF \
             -DBUILD_LAUNCHER=OFF \
             -DBUILD_ESSIMPORTER=OFF \
