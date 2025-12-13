@@ -112,14 +112,16 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍA A FFMPEG ---
-          # Buscamos la línea que dice "find_package(FFmpeg REQUIRED...)" y le borramos el REQUIRED
+          # --- LOBOTOMÍA A FFMPEG (Quitar "REQUIRED") ---
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
-          # --------------------------
+          # ---------------------------------------------
           
           mkdir build
           cd build
           
+          # --- COMBINACIÓN GANADORA ---
+          # 1. Ya quitamos REQUIRED con sed arriba
+          # 2. Ahora ponemos CMAKE_DISABLE... para que NO lo busque
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -134,6 +136,8 @@ jobs:
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
             -DOPENMW_USE_SYSTEM_LZ4=ON \
             -DOPENMW_USE_FFMPEG=OFF \
+            -DCMAKE_DISABLE_FIND_PACKAGE_FFmpeg=TRUE \
+            -DCMAKE_DISABLE_FIND_PACKAGE_collada_dom=TRUE \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
