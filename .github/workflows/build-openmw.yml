@@ -85,14 +85,9 @@ jobs:
           unzip sqlite-amalgamation-3420000.zip
           cd sqlite-amalgamation-3420000
           
-          # --- TRUCO DEL FANTASMA ---
-          # Creamos la carpeta y el archivo que faltan, vacíos, para engañar al compilador
           mkdir sys
           touch sys/ioctl.h
-          # --------------------------
           
-          # Compilamos añadiendo -I. para que encuentre nuestra carpeta 'sys' falsa
-          # También desactivamos WAL y extensiones para evitar errores de linkeo
           arm-vita-eabi-gcc -O3 -D__vita__ -I. -DSQLITE_OMIT_WAL -DSQLITE_OMIT_LOAD_EXTENSION -c sqlite3.c -o sqlite3.o
           arm-vita-eabi-ar rcs libsqlite3.a sqlite3.o
           
@@ -137,7 +132,7 @@ jobs:
           mkdir build
           cd build
           
-          # --- AÑADIMOS -DBUILD_LUA=OFF ---
+          # --- CAMBIOS IMPORTANTES AQUÍ ABAJO (Rutas de instalación) ---
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -166,6 +161,10 @@ jobs:
             -DOPENTHREADS_INCLUDE_DIR="$(pwd)/../deps/osg/include" \
             -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
             -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
+            -DBINDIR=bin \
+            -DLIBDIR=lib \
+            -DDATAROOTDIR=share \
+            -DSYSCONFDIR=etc \
             -G "Unix Makefiles"
 
       - name: 10. Compilar OpenMW
