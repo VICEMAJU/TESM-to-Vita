@@ -13,7 +13,8 @@ jobs:
 
     steps:
       - name: 1. Instalar Herramientas
-        run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++
+        # Agregamos 'zip' para descomprimir SQLite
+        run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++ zip
 
       - name: 2. Descargar Código OpenMW (Tu Repo)
         uses: actions/checkout@v4
@@ -39,7 +40,7 @@ jobs:
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           
-          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu")
+          set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu;\${CMAKE_CURRENT_SOURCE_DIR}/deps/sqlite")
           EOF
 
       - name: 5. 🏗️ Compilar Interfaz (MyGUI)
@@ -78,41 +79,53 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 7. 🏗️ Compilar ICU (EL MONSTRUO)
+      - name: 7. 🏗️ Compilar SQLite (NUEVO)
+        run: |
+          echo "Compilando SQLite3..."
+          # Descargamos el código fuente "amalgamation" (un solo archivo C)
+          wget https://www.sqlite.org/2023/sqlite-amalgamation-3420000.zip
+          unzip sqlite-amalgamation-3420000.zip
+          cd sqlite-amalgamation-3420000
+          
+          # Compilamos manualmente para Vita
+          arm-vita-eabi-gcc -O3 -D__vita__ -c sqlite3.c -o sqlite3.o
+          arm-vita-eabi-ar rcs libsqlite3.a sqlite3.o
+          
+          # Instalamos en nuestra carpeta deps
+          mkdir -p ../deps/sqlite/include
+          mkdir -p ../deps/sqlite/lib
+          cp sqlite3.h ../deps/sqlite/include/
+          cp libsqlite3.a ../deps/sqlite/lib/
+          echo "✅ SQLite Listo"
+
+      - name: 8. 🏗️ Compilar ICU (EL MONSTRUO)
         run: |
           echo "Descargando ICU..."
           wget https://github.com/unicode-org/icu/releases/download/release-55-2/icu4c-55_2-src.tgz
           tar -xzf icu4c-55_2-src.tgz
           
-          echo "1. Construyendo herramientas para Linux (Host)..."
           mkdir build-host
           cd build-host
           ../icu/source/runConfigureICU Linux
           make -j$(nproc)
           cd ..
           
-          echo "2. Construyendo librería para Vita (Target)..."
           mkdir build-vita
           cd build-vita
-          
           cp ../icu/source/config/mh-linux ../icu/source/config/mh-unknown
           export CC=arm-vita-eabi-gcc
           export CXX=arm-vita-eabi-g++
-          
           ../icu/source/configure --host=arm-vita-eabi --prefix="$PWD/../deps/icu" \
             --with-cross-build="$PWD/../build-host" \
             --enable-static --disable-shared \
             --disable-dyload --disable-tools --disable-tests --disable-samples
-            
           make -j$(nproc)
           make install
-          echo "✅ ICU Listo"
 
-      - name: 8. Configurar OpenMW
+      - name: 9. Configurar OpenMW
         run: |
           git config --global --add safe.directory "*"
           
-          # LOBOTOMÍAS (FFmpeg + Bullet)
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
@@ -120,7 +133,7 @@ jobs:
           mkdir build
           cd build
           
-          # --- AGREGAMOS LAS BANDERAS DE BOOST ---
+          # --- AÑADIMOS SQLITE A LA CONFIGURACIÓN ---
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -146,9 +159,11 @@ jobs:
             -DOPENTHREADS_LIBRARY="$(pwd)/../deps/osg/lib/libOpenThreads.a" \
             -DOPENTHREADS_LIBRARY_RELEASE="$(pwd)/../deps/osg/lib/libOpenThreads.a" \
             -DOPENTHREADS_INCLUDE_DIR="$(pwd)/../deps/osg/include" \
+            -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
+            -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
             -G "Unix Makefiles"
 
-      - name: 9. Compilar OpenMW
+      - name: 10. Compilar OpenMW
         run: |
           cd build
           make -j$(nproc)
