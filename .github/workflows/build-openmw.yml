@@ -112,11 +112,6 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- DIAGNÓSTICO ---
-          echo "🔎 Buscando archivos de OSG:"
-          ls -l deps/osg/lib/
-          # -------------------
-
           # LOBOTOMÍAS (FFmpeg + Bullet)
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
@@ -125,8 +120,7 @@ jobs:
           mkdir build
           cd build
           
-          # --- ARREGLO OPENTHREADS (FUERZA BRUTA) ---
-          # Agregamos _RELEASE y _DEBUG por si acaso
+          # --- AGREGAMOS LAS BANDERAS DE BOOST ---
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -144,6 +138,8 @@ jobs:
             -DOPENMW_USE_DOUBLE_PRECISION=OFF \
             -DCMAKE_DISABLE_FIND_PACKAGE_FFmpeg=TRUE \
             -DCMAKE_DISABLE_FIND_PACKAGE_collada_dom=TRUE \
+            -DBoost_USE_STATIC_LIBS=ON \
+            -DBoost_USE_STATIC_RUNTIME=ON \
             -DOPENGL_INCLUDE_DIR="$VITASDK/arm-vita-eabi/include" \
             -DOPENGL_gl_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
             -DOPENGL_glu_LIBRARY="$VITASDK/arm-vita-eabi/lib/libGLESv2.a" \
