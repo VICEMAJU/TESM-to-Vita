@@ -125,25 +125,15 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS (Errores de Lógica) ---
+          # Lobotomías habituales
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
-
-          # --- PARCHE DE INSTALACIÓN (Errores de Rutas) ---
-          # Reemplazamos las variables vacías por rutas fijas ("hardcoding")
-          # Esto evita el error "INSTALL FILES given no DESTINATION"
-          sed -i 's/DESTINATION ${BINDIR}/DESTINATION bin/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${LIBDIR}/DESTINATION lib/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${DOCDIR}/DESTINATION share\/doc/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${MANDIR}/DESTINATION share\/man/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${SYSCONFDIR}/DESTINATION etc/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${DATAROOTDIR}/DESTINATION share/g' CMakeLists.txt
-          # ------------------------------------------------
           
           mkdir build
           cd build
           
+          # --- AQUÍ ESTÁ EL BOMBARDEO DE RUTAS ---
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -173,6 +163,17 @@ jobs:
             -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
             -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
             -DCMAKE_INSTALL_PREFIX="./install" \
+            -DCMAKE_INSTALL_BINDIR=bin \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DCMAKE_INSTALL_DATAROOTDIR=share \
+            -DCMAKE_INSTALL_SYSCONFDIR=etc \
+            -DBINDIR=bin \
+            -DLIBDIR=lib \
+            -DDATAROOTDIR=share \
+            -DSYSCONFDIR=etc \
+            -DMAN_PATH=share/man \
+            -DDOCDIR=share/doc \
+            -DGLOBAL_DATA_PATH="share" \
             -G "Unix Makefiles"
 
       - name: 10. Compilar OpenMW
