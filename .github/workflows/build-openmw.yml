@@ -1,3 +1,4 @@
+
 name: FASE 3 - Compilando OpenMW
 
 on: [push, workflow_dispatch]
@@ -26,7 +27,7 @@ jobs:
           name: osg-vita-libs
           path: deps/osg
 
-      - name: 4. ✍️ Inyectar Toolchain
+      - name: 4. ✍️ Inyectar Toolchain (DEFINICIÓN DE SISTEMA COMPLETA)
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -38,6 +39,15 @@ jobs:
           
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
+          
+          # Definimos las rutas de instalación A NIVEL DE SISTEMA
+          # Usamos CACHE STRING "" FORCE para asegurar que OpenMW las tome
+          set(BINDIR "bin" CACHE STRING "User binaries" FORCE)
+          set(LIBDIR "lib" CACHE STRING "Object code libraries" FORCE)
+          set(DATAROOTDIR "share" CACHE STRING "Read-only arch-independent data root" FORCE)
+          set(DOCDIR "share/doc" CACHE STRING "Documentation root" FORCE)
+          set(MANDIR "share/man" CACHE STRING "Man pages" FORCE)
+          set(SYSCONFDIR "etc" CACHE STRING "Read-only single-machine data" FORCE)
           
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu;\${CMAKE_CURRENT_SOURCE_DIR}/deps/sqlite")
           EOF
@@ -125,24 +135,16 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS (Errores de Lógica) ---
+          # --- LOBOTOMÍAS (Solo lógica, no rutas) ---
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
-
-          # --- PARCHE DE INSTALACIÓN (Fuerza bruta para rutas) ---
-          # Reemplazamos las variables ${VAR} por texto plano 'share', 'bin', etc.
-          # Escapamos la barra / con \/ para que sed no falle
-          sed -i 's/DESTINATION ${BINDIR}/DESTINATION bin/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${LIBDIR}/DESTINATION lib/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${DOCDIR}/DESTINATION share\/doc/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${MANDIR}/DESTINATION share\/man/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${SYSCONFDIR}/DESTINATION etc/g' CMakeLists.txt
-          sed -i 's/DESTINATION ${DATAROOTDIR}/DESTINATION share/g' CMakeLists.txt
           
           mkdir build
           cd build
           
+          # --- CONFIGURACIÓN LIMPIA ---
+          # Ya no pasamos BINDIR aquí porque está en vita.cmake
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
