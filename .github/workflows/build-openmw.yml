@@ -125,7 +125,7 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # Mantenemos las correcciones lógicas (FFmpeg/Bullet)
+          # Mantenemos SOLO las correcciones lógicas vitales
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
@@ -133,8 +133,8 @@ jobs:
           mkdir build
           cd build
           
-          # --- INYECCIÓN DIRECTA DE VARIABLES ---
-          # Aquí forzamos que las variables NO estén vacías
+          # --- INYECCIÓN DIRECTA DE VARIABLES (La forma correcta) ---
+          # Pasamos todas las variables de ruta posibles para que ninguna esté vacía
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
