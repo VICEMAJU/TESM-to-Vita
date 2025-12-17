@@ -1,4 +1,3 @@
-
 name: FASE 3 - Compilando OpenMW
 
 on: [push, workflow_dispatch]
@@ -27,7 +26,7 @@ jobs:
           name: osg-vita-libs
           path: deps/osg
 
-      - name: 4. ✍️ Inyectar Toolchain (DEFINICIÓN DE SISTEMA COMPLETA)
+      - name: 4. ✍️ Inyectar Toolchain
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -39,15 +38,6 @@ jobs:
           
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
           set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP")
-          
-          # Definimos las rutas de instalación A NIVEL DE SISTEMA
-          # Usamos CACHE STRING "" FORCE para asegurar que OpenMW las tome
-          set(BINDIR "bin" CACHE STRING "User binaries" FORCE)
-          set(LIBDIR "lib" CACHE STRING "Object code libraries" FORCE)
-          set(DATAROOTDIR "share" CACHE STRING "Read-only arch-independent data root" FORCE)
-          set(DOCDIR "share/doc" CACHE STRING "Documentation root" FORCE)
-          set(MANDIR "share/man" CACHE STRING "Man pages" FORCE)
-          set(SYSCONFDIR "etc" CACHE STRING "Read-only single-machine data" FORCE)
           
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu;\${CMAKE_CURRENT_SOURCE_DIR}/deps/sqlite")
           EOF
@@ -135,7 +125,7 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS (Solo lógica, no rutas) ---
+          # Mantenemos las correcciones lógicas (FFmpeg/Bullet)
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
@@ -143,8 +133,8 @@ jobs:
           mkdir build
           cd build
           
-          # --- CONFIGURACIÓN LIMPIA ---
-          # Ya no pasamos BINDIR aquí porque está en vita.cmake
+          # --- INYECCIÓN DIRECTA DE VARIABLES ---
+          # Aquí forzamos que las variables NO estén vacías
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -174,6 +164,13 @@ jobs:
             -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
             -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
             -DCMAKE_INSTALL_PREFIX="./install" \
+            -DBINDIR=bin \
+            -DLIBDIR=lib \
+            -DDATAROOTDIR=share \
+            -DSYSCONFDIR=etc \
+            -DMAN_PATH=share/man \
+            -DDOCDIR=share/doc \
+            -DGLOBAL_DATA_PATH="share" \
             -G "Unix Makefiles"
 
       - name: 10. Compilar OpenMW
