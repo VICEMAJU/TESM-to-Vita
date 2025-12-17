@@ -27,7 +27,6 @@ jobs:
           path: deps/osg
 
       - name: 4. ✍️ Inyectar Toolchain
-        # Volvemos al Toolchain limpio y estándar. La inyección de rutas la haremos por comando.
         run: |
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
@@ -126,16 +125,25 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS LÓGICAS (Necesarias) ---
+          # LOBOTOMÍAS (Correcciones lógicas)
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
           
+          # --- CORRECCIÓN CRÍTICA DE RUTAS ---
+          # Usamos la barra invertida \ antes del $ para que la consola NO intente leer la variable.
+          # Así sed reemplazará el texto literal "${BINDIR}" por "bin" dentro del archivo.
+          sed -i 's/\${BINDIR}/bin/g' CMakeLists.txt
+          sed -i 's/\${LIBDIR}/lib/g' CMakeLists.txt
+          sed -i 's/\${DOCDIR}/share\/doc/g' CMakeLists.txt
+          sed -i 's/\${MANDIR}/share\/man/g' CMakeLists.txt
+          sed -i 's/\${SYSCONFDIR}/etc/g' CMakeLists.txt
+          sed -i 's/\${DATAROOTDIR}/share/g' CMakeLists.txt
+          # -----------------------------------
+          
           mkdir build
           cd build
           
-          # --- INYECCIÓN DE VARIABLES POR COMANDO ---
-          # Aquí definimos manualmente todas las rutas para evitar variables vacías
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -165,13 +173,6 @@ jobs:
             -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
             -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
             -DCMAKE_INSTALL_PREFIX="./install" \
-            -DBINDIR=bin \
-            -DLIBDIR=lib \
-            -DDATAROOTDIR=share \
-            -DSYSCONFDIR=etc \
-            -DMAN_PATH=share/man \
-            -DDOCDIR=share/doc \
-            -DGLOBAL_DATA_PATH="share" \
             -G "Unix Makefiles"
 
       - name: 10. Compilar OpenMW
