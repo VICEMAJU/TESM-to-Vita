@@ -1,5 +1,4 @@
 name: FASE 3 - Compilando OpenMW
-name: FASE 3 - Compilando OpenMW
 
 on: [push, workflow_dispatch]
 
