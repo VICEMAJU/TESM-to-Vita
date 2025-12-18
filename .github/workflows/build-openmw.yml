@@ -125,9 +125,15 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- DIAGNÓSTICO DE INCLUDES ---
-          echo "🔎 Verificando estructura de headers de OSG:"
+          # --- DIAGNÓSTICO DE INCLUDES (IMPORTANTE) ---
+          echo "🔎 BUSCANDO OPENTHREADS..."
           ls -F deps/osg/include/
+          if [ -d "deps/osg/include/OpenThreads" ]; then
+            echo "✅ Carpeta OpenThreads encontrada."
+          else
+            echo "❌ NO SE ENCUENTRA OpenThreads o está en minúsculas."
+            find deps/osg/include -name "*hreads*"
+          fi
           # -------------------------------
 
           # LOBOTOMÍAS BÁSICAS
@@ -135,17 +141,11 @@ jobs:
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
 
-          # --- ELIMINACIÓN TOTAL DEL VIDEOPLAYER ---
-          # 1. Borramos la línea en el archivo padre (extern/CMakeLists.txt)
-          #    Usamos una búsqueda más genérica para asegurar que la encuentre
+          # BORRAR VIDEOPLAYER
           sed -i '/osg-ffmpeg-videoplayer/d' extern/CMakeLists.txt
-          
-          # 2. VACIADO DEL ARCHIVO DEL SUBMÓDULO (El golpe de gracia)
-          #    Si CMake intenta entrar aquí, encontrará un archivo vacío y no hará nada.
           echo "" > extern/osg-ffmpeg-videoplayer/CMakeLists.txt
-          # -----------------------------------------
           
-          # CIRUGÍA PYTHON (Rutas Hardcodeadas - Mantenemos esto porque FUNCIONA)
+          # CIRUGÍA PYTHON (Rutas)
           python3 -c '
           import sys
           replacements = {
@@ -156,17 +156,15 @@ jobs:
           with open("CMakeLists.txt", "r") as f: content = f.read()
           for key, value in replacements.items(): content = content.replace(key, value)
           with open("CMakeLists.txt", "w") as f: f.write(content)
-          print("✅ Variables reemplazadas con Python")
+          print("✅ Variables reemplazadas")
           '
           
           mkdir build
           cd build
           
-          # Mantenemos las banderas -I para ayudar al compilador a encontrar OpenThreads si lo necesita otra parte
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-O3 -D__vita__ -I$(pwd)/../deps/osg/include" \
             -DBUILD_OPENMW=ON \
             -DBUILD_OPENCS=OFF \
             -DBUILD_LUA=OFF \
@@ -198,4 +196,12 @@ jobs:
       - name: 10. Compilar OpenMW
         run: |
           cd build
+          
+          # --- EL TRUCO FINAL: CPATH ---
+          # Forzamos al compilador a mirar en deps/osg/include SIEMPRE
+          # $PWD en este punto es /.../TESM-to-Vita/build
+          # Así que la ruta relativa es ../deps/osg/include
+          export CPATH="$PWD/../deps/osg/include:$CPATH"
+          echo "🔧 CPATH forzado a: $CPATH"
+          
           make -j$(nproc)
