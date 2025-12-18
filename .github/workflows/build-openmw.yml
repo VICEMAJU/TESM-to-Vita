@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: 1. Instalar Herramientas
-        run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++ zip
+        run: apk update && apk add --no-cache make cmake git pkgconf sed python3 g++ zip findutils
 
       - name: 2. Descargar Código OpenMW (Tu Repo)
         uses: actions/checkout@v4
@@ -125,38 +125,48 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- DIAGNÓSTICO DE INCLUDES (IMPORTANTE) ---
-          echo "🔎 BUSCANDO OPENTHREADS..."
-          ls -F deps/osg/include/
-          if [ -d "deps/osg/include/OpenThreads" ]; then
-            echo "✅ Carpeta OpenThreads encontrada."
-          else
-            echo "❌ NO SE ENCUENTRA OpenThreads o está en minúsculas."
-            find deps/osg/include -name "*hreads*"
+          # --- OPERACIÓN SABUESO: Encontrar OpenThreads ---
+          echo "🔎 Buscando 'ReentrantMutex' en toda la carpeta deps..."
+          find deps -name "ReentrantMutex"
+          
+          # Corrección de mayúsculas/minúsculas si es necesario
+          if [ -d "deps/osg/include/openthreads" ] && [ ! -d "deps/osg/include/OpenThreads" ]; then
+            echo "⚠️ Detectada carpeta 'openthreads' en minúsculas. Creando enlace simbólico..."
+            ln -s openthreads deps/osg/include/OpenThreads
           fi
-          # -------------------------------
+          # ------------------------------------------------
 
-          # LOBOTOMÍAS BÁSICAS
+          # LOBOTOMÍAS
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
-
-          # BORRAR VIDEOPLAYER
           sed -i '/osg-ffmpeg-videoplayer/d' extern/CMakeLists.txt
           echo "" > extern/osg-ffmpeg-videoplayer/CMakeLists.txt
           
-          # CIRUGÍA PYTHON (Rutas)
+          # --- CIRUGÍA PYTHON ---
           python3 -c '
           import sys
+          import os
+          
           replacements = {
               "${BINDIR}": "bin", "${LIBDIR}": "lib", "${DOCDIR}": "share/doc",
               "${MANDIR}": "share/man", "${SYSCONFDIR}": "etc", "${DATAROOTDIR}": "share",
               "${GLOBAL_DATA_PATH}": "share", "${ICONDIR}": "share/icons"
           }
+          
           with open("CMakeLists.txt", "r") as f: content = f.read()
+          
+          # 1. Reemplazo de variables
           for key, value in replacements.items(): content = content.replace(key, value)
+          
+          # 2. Inyección de INCLUDE DIRECTORIES (Esto es clave)
+          # Forzamos a CMake a saber dónde están los headers de OSG desde la raíz
+          cwd = os.getcwd()
+          include_injection = f"include_directories({cwd}/deps/osg/include)\n"
+          content = include_injection + content
+          
           with open("CMakeLists.txt", "w") as f: f.write(content)
-          print("✅ Variables reemplazadas")
+          print("✅ Variables reemplazadas e Includes inyectados")
           '
           
           mkdir build
@@ -196,12 +206,4 @@ jobs:
       - name: 10. Compilar OpenMW
         run: |
           cd build
-          
-          # --- EL TRUCO FINAL: CPATH ---
-          # Forzamos al compilador a mirar en deps/osg/include SIEMPRE
-          # $PWD en este punto es /.../TESM-to-Vita/build
-          # Así que la ruta relativa es ../deps/osg/include
-          export CPATH="$PWD/../deps/osg/include:$CPATH"
-          echo "🔧 CPATH forzado a: $CPATH"
-          
           make -j$(nproc)
