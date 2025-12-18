@@ -130,12 +130,11 @@ jobs:
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
           
-          # --- LA CIRUGÍA CON PYTHON (Infalible) ---
-          # Este script abre el archivo, busca las variables ${...} y las reemplaza
-          # por texto plano. No hay shell, no hay errores de variables.
+          # --- LA CIRUGÍA CON PYTHON (Actualizada) ---
           python3 -c '
           import sys
           
+          # AQUÍ AGREGAMOS ICONDIR
           replacements = {
               "${BINDIR}": "bin",
               "${LIBDIR}": "lib",
@@ -143,7 +142,8 @@ jobs:
               "${MANDIR}": "share/man",
               "${SYSCONFDIR}": "etc",
               "${DATAROOTDIR}": "share",
-              "${GLOBAL_DATA_PATH}": "share"
+              "${GLOBAL_DATA_PATH}": "share",
+              "${ICONDIR}": "share/icons"
           }
           
           with open("CMakeLists.txt", "r") as f:
@@ -154,14 +154,13 @@ jobs:
           
           with open("CMakeLists.txt", "w") as f:
               f.write(content)
-          print("✅ Variables reemplazadas exitosamente con Python")
+          print("✅ Variables (incluida ICONDIR) reemplazadas exitosamente")
           '
           # ------------------------------------------
           
           mkdir build
           cd build
           
-          # Ya no hacen falta los -D porque el archivo CMakeLists.txt ya tiene las rutas escritas a fuego
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
