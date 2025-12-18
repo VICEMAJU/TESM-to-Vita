@@ -125,23 +125,27 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- DIAGNÓSTICO ---
-          # Vamos a ver qué demonios hay dentro de la carpeta include para asegurarnos
-          echo "📂 Listando headers de OSG:"
-          ls -R deps/osg/include
-          # -------------------
+          # --- DIAGNÓSTICO DE INCLUDES ---
+          echo "🔎 Verificando estructura de headers de OSG:"
+          ls -F deps/osg/include/
+          # -------------------------------
 
           # LOBOTOMÍAS BÁSICAS
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
 
-          # --- LOBOTOMÍA NUEVA: Eliminar el VideoPlayer ---
-          # Buscamos en extern/CMakeLists.txt y borramos la línea que añade el videoplayer
-          sed -i '/add_subdirectory(osg-ffmpeg-videoplayer)/d' extern/CMakeLists.txt
-          # ------------------------------------------------
+          # --- ELIMINACIÓN TOTAL DEL VIDEOPLAYER ---
+          # 1. Borramos la línea en el archivo padre (extern/CMakeLists.txt)
+          #    Usamos una búsqueda más genérica para asegurar que la encuentre
+          sed -i '/osg-ffmpeg-videoplayer/d' extern/CMakeLists.txt
           
-          # CIRUGÍA PYTHON (Rutas)
+          # 2. VACIADO DEL ARCHIVO DEL SUBMÓDULO (El golpe de gracia)
+          #    Si CMake intenta entrar aquí, encontrará un archivo vacío y no hará nada.
+          echo "" > extern/osg-ffmpeg-videoplayer/CMakeLists.txt
+          # -----------------------------------------
+          
+          # CIRUGÍA PYTHON (Rutas Hardcodeadas - Mantenemos esto porque FUNCIONA)
           python3 -c '
           import sys
           replacements = {
@@ -152,13 +156,13 @@ jobs:
           with open("CMakeLists.txt", "r") as f: content = f.read()
           for key, value in replacements.items(): content = content.replace(key, value)
           with open("CMakeLists.txt", "w") as f: f.write(content)
-          print("✅ Variables reemplazadas")
+          print("✅ Variables reemplazadas con Python")
           '
           
           mkdir build
           cd build
           
-          # NOTA: Agregamos CMAKE_CXX_FLAGS con -I para forzar la ruta de includes
+          # Mantenemos las banderas -I para ayudar al compilador a encontrar OpenThreads si lo necesita otra parte
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
