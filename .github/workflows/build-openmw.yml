@@ -125,45 +125,44 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS BÁSICAS ---
+          # --- DIAGNÓSTICO ---
+          # Vamos a ver qué demonios hay dentro de la carpeta include para asegurarnos
+          echo "📂 Listando headers de OSG:"
+          ls -R deps/osg/include
+          # -------------------
+
+          # LOBOTOMÍAS BÁSICAS
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
+
+          # --- LOBOTOMÍA NUEVA: Eliminar el VideoPlayer ---
+          # Buscamos en extern/CMakeLists.txt y borramos la línea que añade el videoplayer
+          sed -i '/add_subdirectory(osg-ffmpeg-videoplayer)/d' extern/CMakeLists.txt
+          # ------------------------------------------------
           
-          # --- LA CIRUGÍA CON PYTHON (Actualizada) ---
+          # CIRUGÍA PYTHON (Rutas)
           python3 -c '
           import sys
-          
-          # AQUÍ AGREGAMOS ICONDIR
           replacements = {
-              "${BINDIR}": "bin",
-              "${LIBDIR}": "lib",
-              "${DOCDIR}": "share/doc",
-              "${MANDIR}": "share/man",
-              "${SYSCONFDIR}": "etc",
-              "${DATAROOTDIR}": "share",
-              "${GLOBAL_DATA_PATH}": "share",
-              "${ICONDIR}": "share/icons"
+              "${BINDIR}": "bin", "${LIBDIR}": "lib", "${DOCDIR}": "share/doc",
+              "${MANDIR}": "share/man", "${SYSCONFDIR}": "etc", "${DATAROOTDIR}": "share",
+              "${GLOBAL_DATA_PATH}": "share", "${ICONDIR}": "share/icons"
           }
-          
-          with open("CMakeLists.txt", "r") as f:
-              content = f.read()
-          
-          for key, value in replacements.items():
-              content = content.replace(key, value)
-          
-          with open("CMakeLists.txt", "w") as f:
-              f.write(content)
-          print("✅ Variables (incluida ICONDIR) reemplazadas exitosamente")
+          with open("CMakeLists.txt", "r") as f: content = f.read()
+          for key, value in replacements.items(): content = content.replace(key, value)
+          with open("CMakeLists.txt", "w") as f: f.write(content)
+          print("✅ Variables reemplazadas")
           '
-          # ------------------------------------------
           
           mkdir build
           cd build
           
+          # NOTA: Agregamos CMAKE_CXX_FLAGS con -I para forzar la ruta de includes
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-O3 -D__vita__ -I$(pwd)/../deps/osg/include" \
             -DBUILD_OPENMW=ON \
             -DBUILD_OPENCS=OFF \
             -DBUILD_LUA=OFF \
