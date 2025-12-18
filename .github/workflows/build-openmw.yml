@@ -125,28 +125,43 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS (Arreglos lógicos) ---
+          # --- LOBOTOMÍAS BÁSICAS ---
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
           
-          # --- INYECCIÓN DE CÓDIGO (Tu idea) ---
-          # Insertamos (i) en la línea 2 estas definiciones.
-          # Esto modifica el archivo CMakeLists.txt antes de compilar.
-          # Así las variables NUNCA estarán vacías.
+          # --- LA CIRUGÍA CON PYTHON (Infalible) ---
+          # Este script abre el archivo, busca las variables ${...} y las reemplaza
+          # por texto plano. No hay shell, no hay errores de variables.
+          python3 -c '
+          import sys
           
-          sed -i '2i set(BINDIR "bin")' CMakeLists.txt
-          sed -i '2i set(LIBDIR "lib")' CMakeLists.txt
-          sed -i '2i set(DOCDIR "share/doc")' CMakeLists.txt
-          sed -i '2i set(MANDIR "share/man")' CMakeLists.txt
-          sed -i '2i set(SYSCONFDIR "etc")' CMakeLists.txt
-          sed -i '2i set(DATAROOTDIR "share")' CMakeLists.txt
-          sed -i '2i set(GLOBAL_DATA_PATH "share")' CMakeLists.txt
-          # -------------------------------------
+          replacements = {
+              "${BINDIR}": "bin",
+              "${LIBDIR}": "lib",
+              "${DOCDIR}": "share/doc",
+              "${MANDIR}": "share/man",
+              "${SYSCONFDIR}": "etc",
+              "${DATAROOTDIR}": "share",
+              "${GLOBAL_DATA_PATH}": "share"
+          }
+          
+          with open("CMakeLists.txt", "r") as f:
+              content = f.read()
+          
+          for key, value in replacements.items():
+              content = content.replace(key, value)
+          
+          with open("CMakeLists.txt", "w") as f:
+              f.write(content)
+          print("✅ Variables reemplazadas exitosamente con Python")
+          '
+          # ------------------------------------------
           
           mkdir build
           cd build
           
+          # Ya no hacen falta los -D porque el archivo CMakeLists.txt ya tiene las rutas escritas a fuego
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
