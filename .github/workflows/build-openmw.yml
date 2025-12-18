@@ -125,26 +125,28 @@ jobs:
         run: |
           git config --global --add safe.directory "*"
           
-          # --- LOBOTOMÍAS DE CÓDIGO ---
+          # --- LOBOTOMÍAS (Arreglos lógicos) ---
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
           
-          # --- EL PARCHE DE RUTAS (CORREGIDO) ---
-          # Usamos \${VAR} para que la consola NO se coma la variable.
-          # Esto reemplaza el texto literal ${BINDIR} por "bin" dentro del archivo.
-          sed -i 's/\${BINDIR}/bin/g' CMakeLists.txt
-          sed -i 's/\${LIBDIR}/lib/g' CMakeLists.txt
-          sed -i 's/\${DOCDIR}/share\/doc/g' CMakeLists.txt
-          sed -i 's/\${MANDIR}/share\/man/g' CMakeLists.txt
-          sed -i 's/\${SYSCONFDIR}/etc/g' CMakeLists.txt
-          sed -i 's/\${DATAROOTDIR}/share/g' CMakeLists.txt
-          # --------------------------------------
+          # --- INYECCIÓN DE CÓDIGO (Tu idea) ---
+          # Insertamos (i) en la línea 2 estas definiciones.
+          # Esto modifica el archivo CMakeLists.txt antes de compilar.
+          # Así las variables NUNCA estarán vacías.
+          
+          sed -i '2i set(BINDIR "bin")' CMakeLists.txt
+          sed -i '2i set(LIBDIR "lib")' CMakeLists.txt
+          sed -i '2i set(DOCDIR "share/doc")' CMakeLists.txt
+          sed -i '2i set(MANDIR "share/man")' CMakeLists.txt
+          sed -i '2i set(SYSCONFDIR "etc")' CMakeLists.txt
+          sed -i '2i set(DATAROOTDIR "share")' CMakeLists.txt
+          sed -i '2i set(GLOBAL_DATA_PATH "share")' CMakeLists.txt
+          # -------------------------------------
           
           mkdir build
           cd build
           
-          # Mantenemos los -D por seguridad, pero el sed debería hacer el trabajo sucio.
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE="../vita.cmake" \
             -DCMAKE_BUILD_TYPE=Release \
@@ -174,13 +176,6 @@ jobs:
             -DSQLite3_INCLUDE_DIR="$(pwd)/../deps/sqlite/include" \
             -DSQLite3_LIBRARY="$(pwd)/../deps/sqlite/lib/libsqlite3.a" \
             -DCMAKE_INSTALL_PREFIX="./install" \
-            -DBINDIR=bin \
-            -DLIBDIR=lib \
-            -DDATAROOTDIR=share \
-            -DSYSCONFDIR=etc \
-            -DMAN_PATH=share/man \
-            -DDOCDIR=share/doc \
-            -DGLOBAL_DATA_PATH="share" \
             -G "Unix Makefiles"
 
       - name: 10. Compilar OpenMW
