@@ -121,51 +121,42 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 9. Configurar OpenMW
+      - name: 9. 🚑 TRASPLANTE DE ÓRGANOS (Recuperar OpenThreads)
+        run: |
+          echo "⚠️ OpenThreads no está en el artefacto. Iniciando protocolo de recuperación..."
+          
+          # Clonamos solo la rama 3.6.5 de OSG (la versión que usamos)
+          git clone --depth 1 --branch OpenSceneGraph-3.6.5 https://github.com/openscenegraph/OpenSceneGraph.git osg_temp
+          
+          # Robamos la carpeta OpenThreads/include/OpenThreads y la ponemos donde debe estar
+          # OJO: La estructura en el repo es src/OpenThreads/include/OpenThreads
+          
+          mkdir -p deps/osg/include/OpenThreads
+          cp -r osg_temp/src/OpenThreads/include/OpenThreads/* deps/osg/include/OpenThreads/
+          
+          # Y también necesitamos el archivo de configuración 'Version' y 'Exports' que se generan...
+          # Mmm, si son headers planos deberían funcionar. Vamos a probar solo copiando.
+          
+          echo "✅ Trasplante completado. Verificando:"
+          ls deps/osg/include/OpenThreads
+          
+          rm -rf osg_temp
+
+      - name: 10. Configurar OpenMW
         run: |
           git config --global --add safe.directory "*"
           
-          # --- 🕵️‍♂️ OPERACIÓN BÚSQUEDA Y RESCATE DE HEADERS ---
-          echo "🔍 Iniciando escaneo de headers..."
-          
-          # Buscamos dónde está realmente el archivo ReentrantMutex
-          TARGET_FILE=$(find deps -name "ReentrantMutex" | head -n 1)
-          
-          if [ -z "$TARGET_FILE" ]; then
-            echo "❌ ERROR CRÍTICO: No se encuentra OpenThreads/ReentrantMutex en ninguna parte."
-            # Listamos todo para debuguear si falla
-            ls -R deps/osg/include
-            exit 1
-          else
-            echo "✅ Archivo encontrado en: $TARGET_FILE"
-            # Obtenemos el directorio padre (que debería ser OpenThreads)
-            REAL_OPENTHREADS_DIR=$(dirname "$TARGET_FILE")
-            echo "📂 Directorio real: $REAL_OPENTHREADS_DIR"
-            
-            # Aseguramos que deps/osg/include exista
-            mkdir -p deps/osg/include
-            
-            # Creamos el enlace simbólico CORRECTO
-            # Si la carpeta destino ya existe (ej: openthreads minúscula), la quitamos primero
-            rm -rf deps/osg/include/OpenThreads
-            ln -s "$(realpath $REAL_OPENTHREADS_DIR)" deps/osg/include/OpenThreads
-            
-            echo "🔗 Enlace creado: deps/osg/include/OpenThreads -> $REAL_OPENTHREADS_DIR"
-          fi
-          # ----------------------------------------------------
-
-          # Lobotomías estándar
+          # Lobotomías
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
-          
-          # Matar al VideoPlayer
           sed -i '/osg-ffmpeg-videoplayer/d' extern/CMakeLists.txt
           echo "" > extern/osg-ffmpeg-videoplayer/CMakeLists.txt
 
-          # Cirugía Python (Variables de instalación)
+          # Cirugía Python
           python3 -c '
           import sys
+          import os
           replacements = {
               "${BINDIR}": "bin", "${LIBDIR}": "lib", "${DOCDIR}": "share/doc",
               "${MANDIR}": "share/man", "${SYSCONFDIR}": "etc", "${DATAROOTDIR}": "share",
@@ -173,8 +164,13 @@ jobs:
           }
           with open("CMakeLists.txt", "r") as f: content = f.read()
           for key, value in replacements.items(): content = content.replace(key, value)
+          
+          # Inyección de Includes
+          cwd = os.getcwd()
+          include_injection = f"include_directories({cwd}/deps/osg/include)\n"
+          content = include_injection + content
+          
           with open("CMakeLists.txt", "w") as f: f.write(content)
-          print("✅ Variables del CMakeLists.txt parcheadas")
           '
           
           mkdir build
@@ -211,9 +207,8 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="./install" \
             -G "Unix Makefiles"
 
-      - name: 10. Compilar OpenMW
+      - name: 11. Compilar OpenMW
         run: |
           cd build
-          # Mantenemos CPATH por si acaso, apunta a la carpeta donde acabamos de crear el symlink
           export CPATH="$PWD/../deps/osg/include:$CPATH"
           make -j$(nproc)
