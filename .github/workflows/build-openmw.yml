@@ -154,29 +154,36 @@ jobs:
           }
           EOF
           
-          # --- 3. CORREGIR STRING_VIEW EN MESSAGEBUNDLES ---
-          echo "🔧 Parcheando components/l10n/messagebundles.hpp..."
+          # --- 3. CORREGIR STRING_VIEW EN MÚLTIPLES ARCHIVOS ---
+          echo "🔧 Parcheando problemas de std::string_view..."
           python3 -c '
           import sys
-          file_path = "components/l10n/messagebundles.hpp"
           
-          with open(file_path, "r") as f:
-              content = f.read()
+          files_to_patch = [
+              "components/l10n/messagebundles.hpp",
+              "components/lua/inputactions.cpp",
+              "components/lua/inputactions.hpp" 
+          ]
           
-          # El error es usar std::string_view(...) como clave en un mapa que espera std::string
-          # Lo cambiamos a std::string(...) para forzar la conversión
-          old_code = "return mBundles.find(std::string_view(loc.getName())) != mBundles.end();"
-          new_code = "return mBundles.find(std::string(loc.getName())) != mBundles.end();"
-          
-          if old_code in content:
-              content = content.replace(old_code, new_code)
-              print("✅ Código corregido exitosamente.")
-          else:
-              print("⚠️ No se encontró la línea exacta, intentando reemplazo genérico...")
-              content = content.replace("std::string_view(loc.getName())", "std::string(loc.getName())")
-
-          with open(file_path, "w") as f:
-              f.write(content)
+          for file_path in files_to_patch:
+              try:
+                  with open(file_path, "r") as f:
+                      content = f.read()
+                  
+                  # Reemplazos específicos que sabemos que fallan
+                  # Caso 1: mBundles.find(...)
+                  content = content.replace("mBundles.find(std::string_view(loc.getName()))", "mBundles.find(std::string(loc.getName()))")
+                  
+                  # Caso 2: mIds.find(key) -> mIds.find(std::string(key))
+                  # Usamos un reemplazo genérico para cualquier variable llamada "key" o "actionKey"
+                  content = content.replace("mIds.find(key)", "mIds.find(std::string(key))")
+                  content = content.replace("mIds.find(actionKey)", "mIds.find(std::string(actionKey))")
+                  
+                  with open(file_path, "w") as f:
+                      f.write(content)
+                  print(f"✅ {file_path} parcheado.")
+              except FileNotFoundError:
+                  print(f"⚠️ No se encontró {file_path}, saltando.")
           '
           # ----------------------------------------------------
 
