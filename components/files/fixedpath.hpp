@@ -32,6 +32,13 @@ namespace Files
     typedef MacOsPath TargetPathType;
 }
 
+#elif defined(__vita__)
+#include <components/files/linuxpath.hpp>
+namespace Files
+{
+    typedef LinuxPath TargetPathType;
+}
+
 #else
 #error "Unknown platform!"
 #endif
