@@ -154,15 +154,14 @@ jobs:
           }
           EOF
           
-          # --- 3. CORREGIR STRING_VIEW EN MÚLTIPLES ARCHIVOS (Actualizado) ---
+          # --- 3. CORREGIR STRING_VIEW (Con reglas nuevas) ---
           echo "🔧 Parcheando problemas de std::string_view..."
           python3 -c '
           import sys
           
-          # Lista de archivos que sabemos que fallan
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
-              "components/l10n/messagebundles.cpp", # <-- NUEVO
+              "components/l10n/messagebundles.cpp",
               "components/lua/inputactions.cpp",
               "components/lua/inputactions.hpp" 
           ]
@@ -172,24 +171,23 @@ jobs:
                   with open(file_path, "r") as f:
                       content = f.read()
                   
-                  # Reemplazos específicos (ordenados de más largo a más corto)
-                  
-                  # 1. messagebundles.hpp
+                  # --- MessageBundles.hpp ---
                   content = content.replace("mBundles.find(std::string_view(loc.getName()))", "mBundles.find(std::string(loc.getName()))")
                   
-                  # 2. messagebundles.cpp
-                  # Error: bundles.find(localeName) donde localeName es string_view
+                  # --- MessageBundles.cpp ---
                   content = content.replace("bundles.find(localeName)", "bundles.find(std::string(localeName))")
-                  # Error: mGmsts.find(key) donde key es string_view
                   content = content.replace("mGmsts.find(key)", "mGmsts.find(std::string(key))")
-                  # Error: mGmsts.contains(key) -> mGmsts.count(std::string(key)) 
-                  # (C++20 contains no existe en mapas viejos, usamos count > 0)
+                  
+                  # ESTA ES LA NUEVA REGLA PARA EL ERROR ACTUAL
+                  content = content.replace("iter->second.find(key)", "iter->second.find(std::string(key))")
+                  
+                  # Contains fix
                   content = content.replace("!mGmsts.contains(key)", "mGmsts.count(std::string(key)) == 0")
                   content = content.replace("mGmsts.contains(key)", "mGmsts.count(std::string(key)) > 0")
-                  # Error: mBundles.find(localeName)
+                  
                   content = content.replace("mBundles.find(localeName)", "mBundles.find(std::string(localeName))")
 
-                  # 3. inputactions.cpp/hpp (Genérico)
+                  # --- InputActions ---
                   content = content.replace("mIds.find(key)", "mIds.find(std::string(key))")
                   content = content.replace("mIds.find(actionKey)", "mIds.find(std::string(actionKey))")
                   
