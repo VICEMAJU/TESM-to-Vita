@@ -121,34 +121,27 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 9. 🚑 REPARACIONES Y TRASPLANTES (Fase Crítica)
+      - name: 9. 🚑 REPARACIONES Y PARCHES (Fase Crítica)
         run: |
           echo "⚠️ Iniciando reparaciones de sistema..."
           
-          # --- 1. REPARAR OPENTHREADS (Lo que ya funcionó) ---
+          # 1. REPARAR OPENTHREADS
           git clone --depth 1 --branch OpenSceneGraph-3.6.5 https://github.com/openscenegraph/OpenSceneGraph.git osg_temp
           FOUND_HEADER=$(find osg_temp -name "ReentrantMutex" | head -n 1)
           SOURCE_DIR=$(dirname "$FOUND_HEADER")
           mkdir -p deps/osg/include/OpenThreads
           cp -r "$SOURCE_DIR/"* deps/osg/include/OpenThreads/
           
-          # Falsificar Config y Version
           echo "#ifndef _OPENTHREADS_CONFIG" > deps/osg/include/OpenThreads/Config
           echo "#define _OPENTHREADS_CONFIG" >> deps/osg/include/OpenThreads/Config
           echo "#define _OPENTHREADS_ATOMIC_USE_GCC_BUILTINS" >> deps/osg/include/OpenThreads/Config
           echo "#define _OPENTHREADS_EXPORTS" >> deps/osg/include/OpenThreads/Config
           echo "#endif" >> deps/osg/include/OpenThreads/Config
-          
           echo "#define OPENTHREADS_MAJOR_VERSION 3" > deps/osg/include/OpenThreads/Version
-          
           rm -rf osg_temp
-          echo "✅ OpenThreads reparado."
           
-          # --- 2. INSTALAR POLYFILL PARA <format> (C++20) ---
-          echo "🔧 Descargando librería FMT..."
+          # 2. INSTALAR POLYFILL PARA <format>
           git clone --depth 1 https://github.com/fmtlib/fmt.git deps/fmt
-          
-          # Crear el archivo trampa 'format' que redirige std::format a fmt::format
           mkdir -p deps/fmt/include/std_shim
           cat <<EOF > deps/fmt/include/std_shim/format
           #pragma once
@@ -160,7 +153,31 @@ jobs:
               using fmt::make_format_args;
           }
           EOF
-          echo "✅ Polyfill para <format> creado."
+          
+          # --- 3. CORREGIR STRING_VIEW EN MESSAGEBUNDLES ---
+          echo "🔧 Parcheando components/l10n/messagebundles.hpp..."
+          python3 -c '
+          import sys
+          file_path = "components/l10n/messagebundles.hpp"
+          
+          with open(file_path, "r") as f:
+              content = f.read()
+          
+          # El error es usar std::string_view(...) como clave en un mapa que espera std::string
+          # Lo cambiamos a std::string(...) para forzar la conversión
+          old_code = "return mBundles.find(std::string_view(loc.getName())) != mBundles.end();"
+          new_code = "return mBundles.find(std::string(loc.getName())) != mBundles.end();"
+          
+          if old_code in content:
+              content = content.replace(old_code, new_code)
+              print("✅ Código corregido exitosamente.")
+          else:
+              print("⚠️ No se encontró la línea exacta, intentando reemplazo genérico...")
+              content = content.replace("std::string_view(loc.getName())", "std::string(loc.getName())")
+
+          with open(file_path, "w") as f:
+              f.write(content)
+          '
           # ----------------------------------------------------
 
       - name: 10. Configurar OpenMW
@@ -188,7 +205,6 @@ jobs:
           
           # Inyección de Includes (OSG + FMT Shim)
           cwd = os.getcwd()
-          # Aquí inyectamos AMBAS rutas: OSG y nuestra trampa para <format>
           include_injection = f"include_directories({cwd}/deps/osg/include {cwd}/deps/fmt/include {cwd}/deps/fmt/include/std_shim)\n"
           content = include_injection + content
           
@@ -232,6 +248,5 @@ jobs:
       - name: 11. Compilar OpenMW
         run: |
           cd build
-          # Mantenemos CPATH reforzado con todas las rutas necesarias
           export CPATH="$PWD/../deps/osg/include:$PWD/../deps/fmt/include:$PWD/../deps/fmt/include/std_shim:$CPATH"
           make -j$(nproc)
