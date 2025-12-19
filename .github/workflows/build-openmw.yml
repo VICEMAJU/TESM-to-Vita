@@ -121,23 +121,36 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 9. 🚑 TRASPLANTE DE ÓRGANOS (Recuperar OpenThreads)
+      - name: 9. 🚑 TRASPLANTE DE ÓRGANOS (Recuperación Inteligente)
         run: |
-          echo "⚠️ OpenThreads no está en el artefacto. Iniciando protocolo de recuperación..."
+          echo "⚠️ Iniciando protocolo de recuperación..."
           
-          # Clonamos solo la rama 3.6.5 de OSG (la versión que usamos)
+          # Clonamos el repo temporalmente
           git clone --depth 1 --branch OpenSceneGraph-3.6.5 https://github.com/openscenegraph/OpenSceneGraph.git osg_temp
           
-          # Robamos la carpeta OpenThreads/include/OpenThreads y la ponemos donde debe estar
-          # OJO: La estructura en el repo es src/OpenThreads/include/OpenThreads
+          echo "🔎 Buscando 'ReentrantMutex' dentro del clon..."
+          # Buscamos dónde está el archivo realmente
+          FOUND_HEADER=$(find osg_temp -name "ReentrantMutex" | head -n 1)
           
+          if [ -z "$FOUND_HEADER" ]; then
+             echo "❌ FATAL: Ni siquiera en el repo oficial encuentro el archivo."
+             exit 1
+          fi
+          
+          echo "✅ Encontrado en: $FOUND_HEADER"
+          
+          # Obtenemos la carpeta padre (que debería ser OpenThreads)
+          SOURCE_DIR=$(dirname "$FOUND_HEADER")
+          
+          echo "📂 Copiando desde: $SOURCE_DIR"
+          
+          # Preparamos el destino
           mkdir -p deps/osg/include/OpenThreads
-          cp -r osg_temp/src/OpenThreads/include/OpenThreads/* deps/osg/include/OpenThreads/
           
-          # Y también necesitamos el archivo de configuración 'Version' y 'Exports' que se generan...
-          # Mmm, si son headers planos deberían funcionar. Vamos a probar solo copiando.
+          # Copiamos todo el contenido de esa carpeta a nuestro destino
+          cp -r "$SOURCE_DIR/"* deps/osg/include/OpenThreads/
           
-          echo "✅ Trasplante completado. Verificando:"
+          echo "✅ Trasplante completado."
           ls deps/osg/include/OpenThreads
           
           rm -rf osg_temp
