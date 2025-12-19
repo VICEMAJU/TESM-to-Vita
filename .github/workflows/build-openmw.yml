@@ -121,59 +121,60 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 9. 🚑 TRASPLANTE DE ÓRGANOS (Generación Manual de Config)
+      - name: 9. 🚑 REPARACIONES Y TRASPLANTES (Fase Crítica)
         run: |
-          echo "⚠️ Iniciando protocolo de recuperación..."
+          echo "⚠️ Iniciando reparaciones de sistema..."
           
+          # --- 1. REPARAR OPENTHREADS (Lo que ya funcionó) ---
           git clone --depth 1 --branch OpenSceneGraph-3.6.5 https://github.com/openscenegraph/OpenSceneGraph.git osg_temp
-          
-          echo "🔎 Buscando 'ReentrantMutex'..."
           FOUND_HEADER=$(find osg_temp -name "ReentrantMutex" | head -n 1)
           SOURCE_DIR=$(dirname "$FOUND_HEADER")
-          
-          echo "📂 Copiando headers..."
           mkdir -p deps/osg/include/OpenThreads
           cp -r "$SOURCE_DIR/"* deps/osg/include/OpenThreads/
           
-          # --- AQUÍ ESTÁ LA MAGIA: FALSIFICAMOS EL ARCHIVO CONFIG ---
-          echo "🔧 Generando OpenThreads/Config manualmente..."
+          # Falsificar Config y Version
+          echo "#ifndef _OPENTHREADS_CONFIG" > deps/osg/include/OpenThreads/Config
+          echo "#define _OPENTHREADS_CONFIG" >> deps/osg/include/OpenThreads/Config
+          echo "#define _OPENTHREADS_ATOMIC_USE_GCC_BUILTINS" >> deps/osg/include/OpenThreads/Config
+          echo "#define _OPENTHREADS_EXPORTS" >> deps/osg/include/OpenThreads/Config
+          echo "#endif" >> deps/osg/include/OpenThreads/Config
           
-          cat <<EOF > deps/osg/include/OpenThreads/Config
-          #ifndef _OPENTHREADS_CONFIG
-          #define _OPENTHREADS_CONFIG
-          // Configuración forzada para VitaSDK (GCC + Pthreads)
-          #define _OPENTHREADS_ATOMIC_USE_GCC_BUILTINS
-          #define _OPENTHREADS_EXPORTS
-          #endif
-          EOF
+          echo "#define OPENTHREADS_MAJOR_VERSION 3" > deps/osg/include/OpenThreads/Version
           
-          # --- TAMBIÉN FALSIFICAMOS VERSION (Por si acaso) ---
-          cat <<EOF > deps/osg/include/OpenThreads/Version
-          #ifndef _OPENTHREADS_VERSION
-          #define _OPENTHREADS_VERSION
-          #define OPENTHREADS_MAJOR_VERSION 3
-          #define OPENTHREADS_MINOR_VERSION 3
-          #define OPENTHREADS_PATCH_VERSION 1
-          #define OPENTHREADS_SOVERSION 3
-          #endif
-          EOF
-          
-          echo "✅ Headers parcheados."
-          ls deps/osg/include/OpenThreads
           rm -rf osg_temp
+          echo "✅ OpenThreads reparado."
+          
+          # --- 2. INSTALAR POLYFILL PARA <format> (C++20) ---
+          echo "🔧 Descargando librería FMT..."
+          git clone --depth 1 https://github.com/fmtlib/fmt.git deps/fmt
+          
+          # Crear el archivo trampa 'format' que redirige std::format a fmt::format
+          mkdir -p deps/fmt/include/std_shim
+          cat <<EOF > deps/fmt/include/std_shim/format
+          #pragma once
+          #include <fmt/core.h>
+          #include <fmt/format.h>
+          namespace std {
+              using fmt::format;
+              using fmt::vformat;
+              using fmt::make_format_args;
+          }
+          EOF
+          echo "✅ Polyfill para <format> creado."
+          # ----------------------------------------------------
 
       - name: 10. Configurar OpenMW
         run: |
           git config --global --add safe.directory "*"
           
-          # Lobotomías
+          # Lobotomías habituales
           sed -i 's/find_package(FFmpeg REQUIRED/find_package(FFmpeg/g' CMakeLists.txt
           sed -i '/FFmpeg was not found/d' CMakeLists.txt
           sed -i '/Bullet does not uses double precision/d' CMakeLists.txt
           sed -i '/osg-ffmpeg-videoplayer/d' extern/CMakeLists.txt
           echo "" > extern/osg-ffmpeg-videoplayer/CMakeLists.txt
 
-          # Cirugía Python
+          # Cirugía Python (Rutas y Configuración)
           python3 -c '
           import sys
           import os
@@ -185,9 +186,10 @@ jobs:
           with open("CMakeLists.txt", "r") as f: content = f.read()
           for key, value in replacements.items(): content = content.replace(key, value)
           
-          # Inyección de Includes
+          # Inyección de Includes (OSG + FMT Shim)
           cwd = os.getcwd()
-          include_injection = f"include_directories({cwd}/deps/osg/include)\n"
+          # Aquí inyectamos AMBAS rutas: OSG y nuestra trampa para <format>
+          include_injection = f"include_directories({cwd}/deps/osg/include {cwd}/deps/fmt/include {cwd}/deps/fmt/include/std_shim)\n"
           content = include_injection + content
           
           with open("CMakeLists.txt", "w") as f: f.write(content)
@@ -230,5 +232,6 @@ jobs:
       - name: 11. Compilar OpenMW
         run: |
           cd build
-          export CPATH="$PWD/../deps/osg/include:$CPATH"
+          # Mantenemos CPATH reforzado con todas las rutas necesarias
+          export CPATH="$PWD/../deps/osg/include:$PWD/../deps/fmt/include:$PWD/../deps/fmt/include/std_shim:$CPATH"
           make -j$(nproc)
