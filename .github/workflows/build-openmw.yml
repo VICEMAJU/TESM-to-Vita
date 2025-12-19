@@ -121,38 +121,45 @@ jobs:
           make -j$(nproc)
           make install
 
-      - name: 9. 🚑 TRASPLANTE DE ÓRGANOS (Recuperación Inteligente)
+      - name: 9. 🚑 TRASPLANTE DE ÓRGANOS (Generación Manual de Config)
         run: |
           echo "⚠️ Iniciando protocolo de recuperación..."
           
-          # Clonamos el repo temporalmente
           git clone --depth 1 --branch OpenSceneGraph-3.6.5 https://github.com/openscenegraph/OpenSceneGraph.git osg_temp
           
-          echo "🔎 Buscando 'ReentrantMutex' dentro del clon..."
-          # Buscamos dónde está el archivo realmente
+          echo "🔎 Buscando 'ReentrantMutex'..."
           FOUND_HEADER=$(find osg_temp -name "ReentrantMutex" | head -n 1)
-          
-          if [ -z "$FOUND_HEADER" ]; then
-             echo "❌ FATAL: Ni siquiera en el repo oficial encuentro el archivo."
-             exit 1
-          fi
-          
-          echo "✅ Encontrado en: $FOUND_HEADER"
-          
-          # Obtenemos la carpeta padre (que debería ser OpenThreads)
           SOURCE_DIR=$(dirname "$FOUND_HEADER")
           
-          echo "📂 Copiando desde: $SOURCE_DIR"
-          
-          # Preparamos el destino
+          echo "📂 Copiando headers..."
           mkdir -p deps/osg/include/OpenThreads
-          
-          # Copiamos todo el contenido de esa carpeta a nuestro destino
           cp -r "$SOURCE_DIR/"* deps/osg/include/OpenThreads/
           
-          echo "✅ Trasplante completado."
-          ls deps/osg/include/OpenThreads
+          # --- AQUÍ ESTÁ LA MAGIA: FALSIFICAMOS EL ARCHIVO CONFIG ---
+          echo "🔧 Generando OpenThreads/Config manualmente..."
           
+          cat <<EOF > deps/osg/include/OpenThreads/Config
+          #ifndef _OPENTHREADS_CONFIG
+          #define _OPENTHREADS_CONFIG
+          // Configuración forzada para VitaSDK (GCC + Pthreads)
+          #define _OPENTHREADS_ATOMIC_USE_GCC_BUILTINS
+          #define _OPENTHREADS_EXPORTS
+          #endif
+          EOF
+          
+          # --- TAMBIÉN FALSIFICAMOS VERSION (Por si acaso) ---
+          cat <<EOF > deps/osg/include/OpenThreads/Version
+          #ifndef _OPENTHREADS_VERSION
+          #define _OPENTHREADS_VERSION
+          #define OPENTHREADS_MAJOR_VERSION 3
+          #define OPENTHREADS_MINOR_VERSION 3
+          #define OPENTHREADS_PATCH_VERSION 1
+          #define OPENTHREADS_SOVERSION 3
+          #endif
+          EOF
+          
+          echo "✅ Headers parcheados."
+          ls deps/osg/include/OpenThreads
           rm -rf osg_temp
 
       - name: 10. Configurar OpenMW
