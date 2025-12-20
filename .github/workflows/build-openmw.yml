@@ -26,8 +26,16 @@ jobs:
           name: osg-vita-libs
           path: deps/osg
 
-      - name: 4. ✍️ Inyectar Toolchain (Con Fix de OpenGL)
+      - name: 4. ✍️ Inyectar Toolchain (Con Fix de Tipos GL)
         run: |
+          # 1. Creamos la "Vacuna" de tipos para OpenGL
+          echo "#ifndef VITA_GL_FIX_H" > vita_gl_fix.h
+          echo "#define VITA_GL_FIX_H" >> vita_gl_fix.h
+          echo "typedef double GLdouble;" >> vita_gl_fix.h
+          echo "typedef double GLclampd;" >> vita_gl_fix.h
+          echo "#endif" >> vita_gl_fix.h
+          
+          # 2. Creamos el archivo de toolchain
           cat <<EOF > vita.cmake
           set(CMAKE_SYSTEM_NAME Generic)
           set(CMAKE_SYSTEM_PROCESSOR arm)
@@ -36,9 +44,10 @@ jobs:
           set(CMAKE_CXX_COMPILER arm-vita-eabi-g++)
           set(CMAKE_FIND_ROOT_PATH "\$ENV{VITASDK}/arm-vita-eabi")
           
-          # AQUI ESTA EL FIX: Definimos GLclampd y GLdouble manualmente
-          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -DGLclampd=double -DGLdouble=double")
-          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -DGLclampd=double -DGLdouble=double")
+          # INYECCIÓN: Usamos -include para cargar nuestros typedefs antes que nada
+          # Esto permite "benign redefinition" (C++ permite repetir typedefs si son iguales)
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -include \${CMAKE_CURRENT_SOURCE_DIR}/vita_gl_fix.h")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -include \${CMAKE_CURRENT_SOURCE_DIR}/vita_gl_fix.h")
           
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu;\${CMAKE_CURRENT_SOURCE_DIR}/deps/sqlite")
           EOF
@@ -155,25 +164,22 @@ jobs:
           }
           EOF
           
-          # 3. SCRIPT DE PARCHEO (Solo lo necesario que NO has hecho a mano)
+          # 3. SCRIPT DE PARCHEO (Solo lo que no hiciste a mano)
           echo "🔧 Ejecutando parches Python..."
           python3 -c '
           import sys
           import re
 
           # --- PARCHEAR LINUXPATH.CPP (Desactivar wordexp) ---
+          # Mantenemos esto porque es complejo de hacer a mano
           try:
               lpc_path = "components/files/linuxpath.cpp"
               with open(lpc_path, "r") as f: content = f.read()
               
-              # Permitir compilación en Vita
               content = content.replace("defined(__linux__)", "defined(__linux__) || defined(__vita__)")
-              
-              # Envolver el include de wordexp
               if "#include <wordexp.h>" in content:
                   content = content.replace("#include <wordexp.h>", "#ifndef __vita__\\n#include <wordexp.h>\\n#endif")
               
-              # Hackear la función wordexp
               hack_wordexp = """
           #ifdef __vita__
           #include <iostream>
@@ -202,7 +208,7 @@ jobs:
               print(f"❌ Error parcheando linuxpath.cpp: {e}")
 
           # --- FIXES DE STRING_VIEW RESTANTES ---
-          # Solo los archivos que aun no has editado a mano
+          # Dejamos esto por seguridad, si ya editaste los archivos no pasará nada
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
               "components/l10n/messagebundles.cpp",
