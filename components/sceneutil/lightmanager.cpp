@@ -325,11 +325,12 @@ namespace SceneUtil
 
         void apply(osg::State& state) const override
         {
+            #ifndef __vita__
             GLenum lightNum = static_cast<GLenum>(GL_LIGHT0 + mIndex);
             glLightfv(lightNum, GL_AMBIENT, mNullptr.ptr());
             glLightfv(lightNum, GL_DIFFUSE, mNullptr.ptr());
             glLightfv(lightNum, GL_SPECULAR, mNullptr.ptr());
-
+            #endif
             LightStateCache* cache = getLightStateCache(state.getContextID());
             cache->lastAppliedLight[mIndex] = nullptr;
         }
@@ -401,18 +402,16 @@ namespace SceneUtil
 
         void applyLight(GLenum lightNum, const osg::Light* light) const
         {
+           #ifndef __vita__
             glLightfv(lightNum, GL_AMBIENT, light->getAmbient().ptr());
             glLightfv(lightNum, GL_DIFFUSE, light->getDiffuse().ptr());
             glLightfv(lightNum, GL_SPECULAR, light->getSpecular().ptr());
             glLightfv(lightNum, GL_POSITION, light->getPosition().ptr());
-            // TODO: enable this once spot lights are supported
-            // need to transform SPOT_DIRECTION by the world matrix?
-            // glLightfv(lightNum, GL_SPOT_DIRECTION, light->getDirection().ptr());
-            // glLightf(lightNum, GL_SPOT_EXPONENT, light->getSpotExponent());
-            // glLightf(lightNum, GL_SPOT_CUTOFF, light->getSpotCutoff());
+            // ... (el código comentado que ya estaba ahí) ...
             glLightf(lightNum, GL_CONSTANT_ATTENUATION, light->getConstantAttenuation());
             glLightf(lightNum, GL_LINEAR_ATTENUATION, light->getLinearAttenuation());
             glLightf(lightNum, GL_QUADRATIC_ATTENUATION, light->getQuadraticAttenuation());
+            #endif
         }
 
     private:
