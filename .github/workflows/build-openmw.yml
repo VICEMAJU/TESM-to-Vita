@@ -151,7 +151,7 @@ jobs:
           echo "#define OPENTHREADS_MAJOR_VERSION 3" > deps/osg/include/OpenThreads/Version
           rm -rf osg_temp
           
-          # 2. INSTALAR POLYFILL PARA <format>
+          # 2. INSTALAR POLYFILL PARA <format> (CON VFORMAT_TO)
           git clone --depth 1 https://github.com/fmtlib/fmt.git deps/fmt
           mkdir -p deps/fmt/include/std_shim
           cat <<EOF > deps/fmt/include/std_shim/format
@@ -162,17 +162,19 @@ jobs:
               using fmt::format;
               using fmt::vformat;
               using fmt::make_format_args;
+              using fmt::vformat_to; // <--- AQUI ESTA LA MAGIA
           }
           EOF
           
-          # 3. SCRIPT DE PARCHEO
+          # 3. SCRIPT DE PARCHEO (Solo lo esencial)
           echo "🔧 Ejecutando parches Python..."
           python3 -c '
           import sys
           import re
 
-          # --- FIXES DE STRING_VIEW RESTANTES ---
-          # (Solo los que no editaste a mano)
+          # NOTA: strnlen, linuxpath, lightmanager y resourcehelpers ESTÁN HECHOS A MANO.
+
+          # --- A. FIXES DE STRING_VIEW RESTANTES ---
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
               "components/l10n/messagebundles.cpp",
@@ -195,7 +197,7 @@ jobs:
                   print(f"✅ {file_path} parcheado.")
               except FileNotFoundError: pass
 
-          # --- FIX DEBUGGING (fileno/isatty) ---
+          # --- B. FIX DEBUGGING (fileno/isatty) ---
           try:
               dbg_path = "components/debug/debugging.cpp"
               with open(dbg_path, "r") as f: content = f.read()
