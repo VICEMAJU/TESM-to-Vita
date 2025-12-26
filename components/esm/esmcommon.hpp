@@ -11,6 +11,17 @@
 #include <type_traits>
 #include <vector>
 
+// --- FIX VITA: Polyfill para strnlen ---
+#ifdef __vita__
+// Usamos 'static inline' para evitar el error "defined but not used"
+// y proporcionar la función que falta en la SDK de Vita.
+static inline size_t strnlen(const char *s, size_t maxlen) {
+    const char *p = (const char *)memchr(s, 0, maxlen);
+    return p ? p - s : maxlen;
+}
+#endif
+// ---------------------------------------
+
 namespace ESM
 {
     enum RecordFlag
