@@ -1,3 +1,21 @@
+#include "crashcatcher.hpp"
+
+// --- FIX VITA: Desactivar CrashCatcher completo ---
+#ifdef __vita__
+
+#include <components/debug/debuglog.hpp>
+
+// Versión "dummy" (vacía) para PS Vita
+void crashCatcherInstall(int argc, char** argv, const std::filesystem::path& crashLogPath)
+{
+    // Simplemente avisamos en el log y no hacemos nada más.
+    // La Vita tiene su propio sistema de manejo de excepciones (coredump).
+    Log(Debug::Info) << "Crash handler disabled for PS Vita";
+}
+
+#else 
+// --- CÓDIGO ORIGINAL PARA LINUX/MAC/WINDOWS ---
+
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
@@ -45,8 +63,6 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #endif
-
-#include "crashcatcher.hpp"
 
 static const char fatal_err[] = "\n\n*** Fatal Error ***\n";
 static const char pipe_err[] = "!!! Failed to create pipe\n";
@@ -594,3 +610,5 @@ void crashCatcherInstall(int argc, char** argv, const std::filesystem::path& cra
     else
         Log(Debug::Warning) << "Installing crash handler failed";
 }
+
+#endif // __vita__
