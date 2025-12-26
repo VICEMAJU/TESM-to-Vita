@@ -165,45 +165,15 @@ jobs:
           }
           EOF
           
-          # 3. SCRIPT DE PARCHEO
+          # 3. SCRIPT DE PARCHEO (Versión ligera)
           echo "🔧 Ejecutando parches Python..."
           python3 -c '
           import sys
           import re
 
-          # --- A. LINUXPATH.CPP (Wordexp - Complejo para manual) ---
-          try:
-              lpc_path = "components/files/linuxpath.cpp"
-              with open(lpc_path, "r") as f: content = f.read()
-              content = content.replace("defined(__linux__)", "defined(__linux__) || defined(__vita__)")
-              if "#include <wordexp.h>" in content:
-                  content = content.replace("#include <wordexp.h>", "#ifndef __vita__\\n#include <wordexp.h>\\n#endif")
-              hack_wordexp = """
-          #ifdef __vita__
-          #include <iostream>
-          #include <cstring>
-          namespace {
-              struct wordexp_t { char **we_wordv; int we_wordc; };
-              int wordexp(const char *s, wordexp_t *p, int flags) {
-                  p->we_wordc = 1;
-                  p->we_wordv = new char*[2];
-                  p->we_wordv[0] = strdup(s);
-                  p->we_wordv[1] = NULL;
-                  return 0;
-              }
-              void wordfree(wordexp_t *p) {
-                  if(p->we_wordv) { free(p->we_wordv[0]); delete[] p->we_wordv; }
-              }
-          }
-          #endif
-          """
-              if "struct wordexp_t" not in content:
-                  content = re.sub(r"(#include <.*>(\s)*)+", r"\g<0>\n" + hack_wordexp, content, 1)
-              with open(lpc_path, "w") as f: f.write(content)
-              print("✅ linuxpath.cpp parcheado.")
-          except Exception as e: print(f"❌ Error linuxpath: {e}")
+          # NOTA: Ya no parcheamos linuxpath.cpp ni lightmanager.cpp porque están hechos a mano.
 
-          # --- B. STRNLEN FIX (Para Vita - Utilidad general) ---
+          # --- A. STRNLEN FIX (Para Vita - Utilidad general) ---
           strnlen_impl = """
           #if defined(__vita__) && !defined(STRNLEN_FIXED)
           #define STRNLEN_FIXED
@@ -224,7 +194,8 @@ jobs:
                       print(f"✅ strnlen inyectado en {file_path}")
               except FileNotFoundError: pass
 
-          # --- C. C++20 COMPATIBILITY FIXES (Resto de archivos) ---
+          # --- B. FIXES DE STRING_VIEW RESTANTES ---
+          # Solo los que no editaste a mano
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
               "components/l10n/messagebundles.cpp",
@@ -247,11 +218,10 @@ jobs:
                   print(f"✅ {file_path} parcheado.")
               except FileNotFoundError: pass
 
-          # --- D. FIX DEBUGGING (fileno/isatty) ---
+          # --- C. FIX DEBUGGING (fileno/isatty) ---
           try:
               dbg_path = "components/debug/debugging.cpp"
               with open(dbg_path, "r") as f: content = f.read()
-              # Si encuentra la línea conflictiva, la reemplaza
               if "isatty(fileno(stderr))" in content:
                   content = content.replace("isatty(fileno(stderr))", "false")
                   with open(dbg_path, "w") as f: f.write(content)
