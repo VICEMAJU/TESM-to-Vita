@@ -165,19 +165,13 @@ jobs:
           }
           EOF
           
-          # 3. SCRIPT DE PARCHEO (Ultra ligero)
+          # 3. SCRIPT DE PARCHEO
           echo "🔧 Ejecutando parches Python..."
           python3 -c '
           import sys
           import re
 
-          # NOTA: 
-          # - linuxpath.cpp -> HECHO A MANO
-          # - lightmanager.cpp -> HECHO A MANO
-          # - resourcehelpers.cpp -> HECHO A MANO
-          # - esmcommon.hpp (strnlen) -> HECHO A MANO
-
-          # --- A. FIXES DE STRING_VIEW RESTANTES ---
+          # --- FIXES DE STRING_VIEW RESTANTES ---
           # (Solo los que no editaste a mano)
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
@@ -201,7 +195,7 @@ jobs:
                   print(f"✅ {file_path} parcheado.")
               except FileNotFoundError: pass
 
-          # --- B. FIX DEBUGGING (fileno/isatty) ---
+          # --- FIX DEBUGGING (fileno/isatty) ---
           try:
               dbg_path = "components/debug/debugging.cpp"
               with open(dbg_path, "r") as f: content = f.read()
