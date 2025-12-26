@@ -1,5 +1,7 @@
 #include "crashcatcher.hpp"
 
+// --- FIX VITA: El header ya maneja la versión vacía (inline). ---
+// Solo compilamos el código complejo si NO estamos en Vita.
 #ifndef __vita__
 
 #include <algorithm>
