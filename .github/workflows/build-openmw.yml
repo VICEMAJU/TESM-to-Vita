@@ -151,7 +151,7 @@ jobs:
           echo "#define OPENTHREADS_MAJOR_VERSION 3" > deps/osg/include/OpenThreads/Version
           rm -rf osg_temp
           
-          # 2. INSTALAR POLYFILL PARA <format> (CON VFORMAT_TO)
+          # 2. INSTALAR POLYFILL PARA <format>
           git clone --depth 1 https://github.com/fmtlib/fmt.git deps/fmt
           mkdir -p deps/fmt/include/std_shim
           cat <<EOF > deps/fmt/include/std_shim/format
@@ -162,17 +162,19 @@ jobs:
               using fmt::format;
               using fmt::vformat;
               using fmt::make_format_args;
-              using fmt::vformat_to; // <--- AQUI ESTA LA MAGIA
+              using fmt::vformat_to;
           }
           EOF
           
-          # 3. SCRIPT DE PARCHEO (Solo lo esencial)
+          # 3. SCRIPT DE PARCHEO
           echo "🔧 Ejecutando parches Python..."
           python3 -c '
           import sys
           import re
 
-          # NOTA: strnlen, linuxpath, lightmanager y resourcehelpers ESTÁN HECHOS A MANO.
+          # NOTA: Archivos críticos hechos a mano:
+          # linuxpath.cpp, lightmanager.cpp, resourcehelpers.cpp, 
+          # esmcommon.hpp, myguirendermanager.cpp, crashcatcher.cpp
 
           # --- A. FIXES DE STRING_VIEW RESTANTES ---
           files_to_patch = [
@@ -205,6 +207,20 @@ jobs:
                   content = content.replace("isatty(fileno(stderr))", "false")
                   with open(dbg_path, "w") as f: f.write(content)
                   print(f"✅ debugging.cpp parcheado.")
+          except FileNotFoundError: pass
+
+          # --- C. FIX ANIMATION (std::string_view vs std::string) ---
+          try:
+              anim_path = "apps/openmw/mwrender/animation.cpp"
+              with open(anim_path, "r") as f: content = f.read()
+              # Reemplazos específicos para este archivo
+              content = content.replace("nodeMap.find(name)", "nodeMap.find(std::string(name))")
+              content = content.replace("getNodeMap().find(bonename)", "getNodeMap().find(std::string(bonename))")
+              content = content.replace("getNodeMap().find(name)", "getNodeMap().find(std::string(name))")
+              content = content.replace("getNodeMap().find(bone)", "getNodeMap().find(std::string(bone))")
+              
+              with open(anim_path, "w") as f: f.write(content)
+              print(f"✅ animation.cpp parcheado.")
           except FileNotFoundError: pass
           '
           # ----------------------------------------------------
@@ -254,6 +270,7 @@ jobs:
             -DBUILD_ESSIMPORTER=OFF \
             -DBUILD_BSATOOL=OFF \
             -DBUILD_UNITTESTS=OFF \
+            -DBUILD_ESMTOOL=OFF \
             -DOPENMW_USE_SYSTEM_OSG=ON \
             -DOPENMW_USE_SYSTEM_MYGUI=ON \
             -DOPENMW_USE_SYSTEM_LZ4=ON \
