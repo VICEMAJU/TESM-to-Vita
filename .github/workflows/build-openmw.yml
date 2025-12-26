@@ -165,20 +165,19 @@ jobs:
           }
           EOF
           
-          # 3. SCRIPT DE PARCHEO (Versión ligera)
+          # 3. SCRIPT DE PARCHEO
           echo "🔧 Ejecutando parches Python..."
           python3 -c '
           import sys
           import re
 
-          # NOTA: Ya no parcheamos linuxpath.cpp ni lightmanager.cpp porque están hechos a mano.
-
-          # --- A. STRNLEN FIX (Para Vita - Utilidad general) ---
+          # --- A. STRNLEN FIX (Actualizado a "static inline") ---
           strnlen_impl = """
           #if defined(__vita__) && !defined(STRNLEN_FIXED)
           #define STRNLEN_FIXED
           #include <cstring>
-          static size_t strnlen(const char *s, size_t maxlen) {
+          // Usamos static inline para evitar warnings de "unused function" en headers
+          static inline size_t strnlen(const char *s, size_t maxlen) {
               const char *p = (const char *)memchr(s, 0, maxlen);
               return p ? p - s : maxlen;
           }
@@ -188,14 +187,22 @@ jobs:
           for file_path in files_strnlen:
               try:
                   with open(file_path, "r") as f: content = f.read()
-                  if "STRNLEN_FIXED" not in content:
+                  
+                  # 1. Si existe la versión mala (solo static), la actualizamos a static inline
+                  if "static size_t strnlen" in content and "STRNLEN_FIXED" in content:
+                      content = content.replace("static size_t strnlen", "static inline size_t strnlen")
+                      with open(file_path, "w") as f: f.write(content)
+                      print(f"✅ strnlen CORREGIDO en {file_path}")
+                  
+                  # 2. Si no existe, la inyectamos nueva
+                  elif "STRNLEN_FIXED" not in content:
                       content = re.sub(r"(#include <.*>(\s)*)+", r"\g<0>\n" + strnlen_impl, content, 1)
                       with open(file_path, "w") as f: f.write(content)
-                      print(f"✅ strnlen inyectado en {file_path}")
+                      print(f"✅ strnlen INYECTADO en {file_path}")
               except FileNotFoundError: pass
 
           # --- B. FIXES DE STRING_VIEW RESTANTES ---
-          # Solo los que no editaste a mano
+          # (Solo los que no editaste a mano)
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
               "components/l10n/messagebundles.cpp",
