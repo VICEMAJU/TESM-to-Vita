@@ -93,6 +93,9 @@ namespace MyGUIPlatform
             state->apply();
 
             state->disableAllVertexArrays();
+            
+// --- FIX VITA: Desactivar pipeline fijo antiguo ---
+#ifndef __vita__
             state->setClientActiveTextureUnit(0);
             glEnableClientState(GL_VERTEX_ARRAY);
             glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -153,6 +156,8 @@ namespace MyGUIPlatform
             glDisableClientState(GL_VERTEX_ARRAY);
             glDisableClientState(GL_TEXTURE_COORD_ARRAY);
             glDisableClientState(GL_COLOR_ARRAY);
+#endif
+// --------------------------------------------------
 
             state->popStateSet();
 
@@ -178,7 +183,9 @@ namespace MyGUIPlatform
             setUpdateCallback(frameUpdate);
 
             mStateSet = new osg::StateSet;
+#ifndef __vita__
             mStateSet->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+#endif
             mStateSet->setTextureMode(0, GL_TEXTURE_2D, osg::StateAttribute::ON);
             mStateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
             mStateSet->setMode(GL_BLEND, osg::StateAttribute::ON);
