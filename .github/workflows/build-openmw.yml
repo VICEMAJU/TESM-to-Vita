@@ -172,11 +172,18 @@ jobs:
           import sys
           import re
 
-          # NOTA: Archivos críticos hechos a mano:
-          # linuxpath.cpp, lightmanager.cpp, resourcehelpers.cpp, 
-          # esmcommon.hpp, myguirendermanager.cpp, crashcatcher.cpp
+          # NOTA: 
+          # - linuxpath.cpp -> MANUAL
+          # - lightmanager.cpp -> MANUAL
+          # - resourcehelpers.cpp -> MANUAL
+          # - esmcommon.hpp -> MANUAL
+          # - myguirendermanager.cpp -> MANUAL
+          # - crashcatcher.cpp -> MANUAL
+          # - sky.cpp -> MANUAL (Nuevo)
+          # - animation.cpp -> MANUAL (Nuevo)
 
           # --- A. FIXES DE STRING_VIEW RESTANTES ---
+          # (Solo los que no editaste a mano)
           files_to_patch = [
               "components/l10n/messagebundles.hpp",
               "components/l10n/messagebundles.cpp",
@@ -207,20 +214,6 @@ jobs:
                   content = content.replace("isatty(fileno(stderr))", "false")
                   with open(dbg_path, "w") as f: f.write(content)
                   print(f"✅ debugging.cpp parcheado.")
-          except FileNotFoundError: pass
-
-          # --- C. FIX ANIMATION (std::string_view vs std::string) ---
-          try:
-              anim_path = "apps/openmw/mwrender/animation.cpp"
-              with open(anim_path, "r") as f: content = f.read()
-              # Reemplazos específicos para este archivo
-              content = content.replace("nodeMap.find(name)", "nodeMap.find(std::string(name))")
-              content = content.replace("getNodeMap().find(bonename)", "getNodeMap().find(std::string(bonename))")
-              content = content.replace("getNodeMap().find(name)", "getNodeMap().find(std::string(name))")
-              content = content.replace("getNodeMap().find(bone)", "getNodeMap().find(std::string(bone))")
-              
-              with open(anim_path, "w") as f: f.write(content)
-              print(f"✅ animation.cpp parcheado.")
           except FileNotFoundError: pass
           '
           # ----------------------------------------------------
