@@ -276,7 +276,9 @@ namespace MWRender
         // render before the world is rendered
         mEarlyRenderBinRoot->getOrCreateStateSet()->setRenderBinDetails(RenderBin_Sky, "RenderBin");
         // Prevent unwanted clipping by water reflection camera's clipping plane
+       #ifndef __vita__
         mEarlyRenderBinRoot->getOrCreateStateSet()->setMode(GL_CLIP_PLANE0, osg::StateAttribute::OFF);
+       #endif
 
         if (enableSkyRTT)
         {
@@ -373,8 +375,9 @@ namespace MWRender
         depth->setWriteMask(false);
         mEarlyRenderBinRoot->getOrCreateStateSet()->setAttributeAndModes(depth);
         mEarlyRenderBinRoot->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
+       #ifndef __vita__
         mEarlyRenderBinRoot->getOrCreateStateSet()->setMode(GL_FOG, osg::StateAttribute::OFF);
-
+       #endif
         mMoonScriptColor = Fallback::Map::getColour("Moons_Script_Color");
 
         mCreated = true;
