@@ -294,9 +294,9 @@ namespace MWRender
         if (!mObjectRoot)
             return nullptr;
 
-        // --- FIX VITA: string_view a string (prevencion) ---
-        SceneUtil::FindByNameVisitor findVisitor(std::string(boneName));
-        // ---------------------------------------------------
+        // Usamos { } para evitar el    "Most Vexing Parse"
+SceneUtil::FindByNameVisitor findVisitor{std::string(boneName)};
+
         
         mObjectRoot->accept(findVisitor);
 
