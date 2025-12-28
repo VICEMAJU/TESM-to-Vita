@@ -27,54 +27,55 @@
 
 #include "constants.hpp"
 
-// --- FIX VITA: Stub Completo para FFmpeg ---
-#ifndef __vita__
-#include "ffmpegdecoder.hpp"
-#else
+// --- FIX VITA: Definición de un Decodificador Dummy Concreto ---
 #include "sounddecoder.hpp"
+
 namespace MWSound {
-    // Clase falsa completa que implementa TODAS las funciones virtuales puras
-    class FFmpeg_Decoder : public SoundDecoder {
+    // Esta clase reemplaza tanto a FFmpegDecoder como al intento fallido de instanciar SoundDecoder
+    class StubDecoder : public SoundDecoder {
     public:
-        // Constructor 1: Llamamos al constructor base con el VFS manager
-        FFmpeg_Decoder(const VFS::Path::NormalizedView&, const VFS::Manager* vfs) 
+        // Constructor compatible con la llamada (Filename, VFS)
+        StubDecoder(const VFS::Path::NormalizedView&, const VFS::Manager* vfs) 
             : SoundDecoder(vfs) 
         { 
-            throw std::runtime_error("FFmpeg not supported on PS Vita"); 
+            // No lanzamos error aquí para permitir que el juego "crea" que ha cargado el decoder
+            // pero luego no leerá nada (silencio).
         }
         
-        // Constructor 2: Por si acaso se usa
-        FFmpeg_Decoder(const VFS::Manager* vfs) 
+        // Constructor compatible con la llamada (Solo VFS)
+        StubDecoder(const VFS::Manager* vfs) 
             : SoundDecoder(vfs)
         {
-            throw std::runtime_error("FFmpeg not supported on PS Vita");
         }
 
-        // Implementación de TODOS los métodos virtuales puros de SoundDecoder
+        // --- Implementación ESTRICTA de métodos virtuales puros ---
+        // (Basado en el error: "following virtual functions are pure")
+        
         virtual void open(VFS::Path::NormalizedView fname) override {}
         virtual void close() override {}
-        virtual std::string getName() override { return "FFmpeg Stub"; }
+        virtual std::string getName() override { return "VitaStub"; }
+        
         virtual void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) override {
+            // Devolvemos valores seguros para evitar división por cero
             if(samplerate) *samplerate = 44100;
             if(chans) *chans = ChannelConfig_Mono;
             if(type) *type = SampleType_Int16;
         }
-        virtual size_t read(char* buffer, size_t bytes) override { return 0; }
-        virtual void rewind() override {}
-        virtual bool isStream() override { return false; }
-        virtual size_t getSampleRate() override { return 44100; }
-        virtual ChannelConfig getChannelConfig() override { return ChannelConfig_Mono; }
-        virtual SampleType getSampleType() override { return SampleType_Int16; }
-        virtual size_t getFrameSize() override { return 0; }
-        virtual size_t getSampleCount() override { return 0; }
-        virtual size_t getSampleOffset() override { return 0; } // Este faltaba antes
+        
+        virtual size_t read(char* buffer, size_t bytes) override { 
+            // Devolvemos 0 bytes leídos (silencio / fin de archivo inmediato)
+            return 0; 
+        }
+        
+        virtual size_t getSampleOffset() override { return 0; }
+        
+        // NOTA: No sobreescribimos rewind, isStream, etc. porque la clase base ya los tiene.
     };
     
-    // Alias para compatibilidad de nombres
-    using FFmpegDecoder = FFmpeg_Decoder;
+    // Alias para que el resto del código compile si usa este nombre
+    using FFmpegDecoder = StubDecoder;
 }
-#endif
-// -------------------------------------------
+// -------------------------------------------------------------------
 
 #include "openaloutput.hpp"
 #include "sound.hpp"
@@ -147,20 +148,9 @@ namespace MWSound
 
         DecoderPtr decoderFactory(const VFS::Path::NormalizedView& fname, const VFS::Manager* vfs)
         {
-            try
-            {
-#ifndef __vita__
-                return std::make_shared<FFmpeg_Decoder>(fname, vfs);
-#else
-                throw std::runtime_error("FFmpeg disabled on Vita");
-#endif
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Verbose) << "Error creating FFmpeg decoder: " << e.what();
-            }
-
-            return std::make_shared<SoundDecoder>(fname, vfs);
+            // FIX VITA: Siempre devolvemos el StubDecoder. 
+            // SoundDecoder es abstracto y no se puede instanciar.
+            return std::make_shared<StubDecoder>(fname, vfs);
         }
     }
 
@@ -231,13 +221,8 @@ namespace MWSound
     // Return a new decoder instance, used as needed by the output implementations
     DecoderPtr SoundManager::getDecoder()
     {
-#ifndef __vita__
-        return std::make_shared<FFmpegDecoder>(mVFS);
-#else
-        // En Vita, devolvemos el decoder base o nulo si no hay nada más
-        // Usar el decoderFactory para mantener la coherencia
-        return std::make_shared<SoundDecoder>(mVFS);
-#endif
+        // FIX VITA: Devolver Stub
+        return std::make_shared<StubDecoder>(mVFS);
     }
 
     DecoderPtr SoundManager::loadVoice(VFS::Path::NormalizedView voicefile)
@@ -331,7 +316,7 @@ namespace MWSound
 
         Log(Debug::Info) << "Playing \"" << filename << "\"";
 
-        // Usamos decoderFactory en lugar de getDecoder para asegurar el fallback
+        // FIX VITA: Usar factory
         DecoderPtr decoder = decoderFactory(filename, mVFS);
         try
         {
