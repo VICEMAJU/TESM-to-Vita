@@ -26,7 +26,33 @@
 #include "../mwmechanics/actorutil.hpp"
 
 #include "constants.hpp"
+
+// --- FIX VITA: Stub (Simulación) para FFmpeg ---
+#ifndef __vita__
 #include "ffmpegdecoder.hpp"
+#else
+#include "sounddecoder.hpp"
+// Definimos una clase falsa para reemplazar a la de FFmpeg.
+// Al heredar de SoundDecoder, es compatible con los punteros del sistema.
+namespace MWSound {
+    class FFmpeg_Decoder : public SoundDecoder {
+    public:
+        // Constructor usado en decoderFactory
+        FFmpeg_Decoder(const VFS::Path::NormalizedView&, const VFS::Manager*) { 
+            throw std::runtime_error("FFmpeg not supported on PS Vita"); 
+        }
+        // Constructor usado en getDecoder (a veces varía el nombre/firma)
+        FFmpeg_Decoder(const VFS::Manager*) {
+            throw std::runtime_error("FFmpeg not supported on PS Vita");
+        }
+    };
+    // En tu archivo original se usan dos nombres distintos: FFmpeg_Decoder y FFmpegDecoder.
+    // Hacemos un alias para que ambos funcionen con nuestra clase falsa.
+    using FFmpegDecoder = FFmpeg_Decoder;
+}
+#endif
+// -----------------------------------------------
+
 #include "openaloutput.hpp"
 #include "sound.hpp"
 #include "soundbuffer.hpp"
@@ -100,6 +126,23 @@ namespace MWSound
             }
 
             return volume;
+        }
+
+        // Returns a pointer to a decoder for the given resource
+        DecoderPtr decoderFactory(const VFS::Path::NormalizedView& fname, const VFS::Manager* vfs)
+        {
+            try
+            {
+                // TODO: When we have a sound settings tab, allow the user to prioritize other decoders?
+                // The ffmpeg decoder is the most reliable one, so try to use it first
+                return std::make_shared<FFmpeg_Decoder>(fname, vfs);
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Verbose) << "Error creating FFmpeg decoder: " << e.what();
+            }
+
+            return std::make_shared<SoundDecoder>(fname, vfs);
         }
     }
 
