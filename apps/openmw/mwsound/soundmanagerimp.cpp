@@ -27,31 +27,54 @@
 
 #include "constants.hpp"
 
-// --- FIX VITA: Stub (Simulación) para FFmpeg ---
+// --- FIX VITA: Stub Completo para FFmpeg ---
 #ifndef __vita__
 #include "ffmpegdecoder.hpp"
 #else
 #include "sounddecoder.hpp"
-// Definimos una clase falsa para reemplazar a la de FFmpeg.
-// Al heredar de SoundDecoder, es compatible con los punteros del sistema.
 namespace MWSound {
+    // Clase falsa completa que implementa TODAS las funciones virtuales puras
     class FFmpeg_Decoder : public SoundDecoder {
     public:
-        // Constructor usado en decoderFactory
-        FFmpeg_Decoder(const VFS::Path::NormalizedView&, const VFS::Manager*) { 
+        // Constructor 1: Llamamos al constructor base con el VFS manager
+        FFmpeg_Decoder(const VFS::Path::NormalizedView&, const VFS::Manager* vfs) 
+            : SoundDecoder(vfs) 
+        { 
             throw std::runtime_error("FFmpeg not supported on PS Vita"); 
         }
-        // Constructor usado en getDecoder (a veces varía el nombre/firma)
-        FFmpeg_Decoder(const VFS::Manager*) {
+        
+        // Constructor 2: Por si acaso se usa
+        FFmpeg_Decoder(const VFS::Manager* vfs) 
+            : SoundDecoder(vfs)
+        {
             throw std::runtime_error("FFmpeg not supported on PS Vita");
         }
+
+        // Implementación de TODOS los métodos virtuales puros de SoundDecoder
+        virtual void open(VFS::Path::NormalizedView fname) override {}
+        virtual void close() override {}
+        virtual std::string getName() override { return "FFmpeg Stub"; }
+        virtual void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) override {
+            if(samplerate) *samplerate = 44100;
+            if(chans) *chans = ChannelConfig_Mono;
+            if(type) *type = SampleType_Int16;
+        }
+        virtual size_t read(char* buffer, size_t bytes) override { return 0; }
+        virtual void rewind() override {}
+        virtual bool isStream() override { return false; }
+        virtual size_t getSampleRate() override { return 44100; }
+        virtual ChannelConfig getChannelConfig() override { return ChannelConfig_Mono; }
+        virtual SampleType getSampleType() override { return SampleType_Int16; }
+        virtual size_t getFrameSize() override { return 0; }
+        virtual size_t getSampleCount() override { return 0; }
+        virtual size_t getSampleOffset() override { return 0; } // Este faltaba antes
     };
-    // En tu archivo original se usan dos nombres distintos: FFmpeg_Decoder y FFmpegDecoder.
-    // Hacemos un alias para que ambos funcionen con nuestra clase falsa.
+    
+    // Alias para compatibilidad de nombres
     using FFmpegDecoder = FFmpeg_Decoder;
 }
 #endif
-// -----------------------------------------------
+// -------------------------------------------
 
 #include "openaloutput.hpp"
 #include "sound.hpp"
@@ -85,15 +108,10 @@ namespace MWSound
 
         float initialFadeVolume(float squaredDist, SoundBuffer* sfx, Type type, PlayMode mode)
         {
-            // If a sound is farther away than its maximum distance, start playing it with a zero fade volume.
-            // It can still become audible once the player moves closer.
             const float maxDist = sfx->getMaxDist();
             if (squaredDist > (maxDist * maxDist))
                 return 0.0f;
 
-            // This is a *heuristic* that causes environment sounds to fade in. The idea is the following:
-            // - Only looped sounds playing through the effects channel are environment sounds
-            // - Do not fade in sounds if the player is already so close that the sound plays at maximum volume
             const float minDist = sfx->getMinDist();
             if ((squaredDist > (minDist * minDist)) && (type == Type::Sfx) && (mode & PlayMode::Loop))
                 return 0.0f;
@@ -101,7 +119,6 @@ namespace MWSound
             return 1.0;
         }
 
-        // Gets the combined volume settings for the given sound type
         float volumeFromType(Type type)
         {
             float volume = Settings::sound().mMasterVolume;
@@ -128,14 +145,15 @@ namespace MWSound
             return volume;
         }
 
-        // Returns a pointer to a decoder for the given resource
         DecoderPtr decoderFactory(const VFS::Path::NormalizedView& fname, const VFS::Manager* vfs)
         {
             try
             {
-                // TODO: When we have a sound settings tab, allow the user to prioritize other decoders?
-                // The ffmpeg decoder is the most reliable one, so try to use it first
+#ifndef __vita__
                 return std::make_shared<FFmpeg_Decoder>(fname, vfs);
+#else
+                throw std::runtime_error("FFmpeg disabled on Vita");
+#endif
             }
             catch (const std::exception& e)
             {
@@ -213,7 +231,13 @@ namespace MWSound
     // Return a new decoder instance, used as needed by the output implementations
     DecoderPtr SoundManager::getDecoder()
     {
+#ifndef __vita__
         return std::make_shared<FFmpegDecoder>(mVFS);
+#else
+        // En Vita, devolvemos el decoder base o nulo si no hay nada más
+        // Usar el decoderFactory para mantener la coherencia
+        return std::make_shared<SoundDecoder>(mVFS);
+#endif
     }
 
     DecoderPtr SoundManager::loadVoice(VFS::Path::NormalizedView voicefile)
@@ -307,7 +331,8 @@ namespace MWSound
 
         Log(Debug::Info) << "Playing \"" << filename << "\"";
 
-        DecoderPtr decoder = getDecoder();
+        // Usamos decoderFactory en lugar de getDecoder para asegurar el fallback
+        DecoderPtr decoder = decoderFactory(filename, mVFS);
         try
         {
             decoder->open(filename);
