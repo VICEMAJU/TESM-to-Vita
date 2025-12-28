@@ -18,10 +18,12 @@
 #include <iterator>
 #include <span>
 #include <vector>
+#include <optional> // FIX: Faltaba este include para std::optional
 
 namespace DetourNavigator
 {
-    template <std::output_iterator<osg::Vec3f> OutputIterator>
+    // FIX VITA: Usar sintaxis clásica de templates en lugar de Concepts (C++20)
+    template <class OutputIterator>
     class FromNavMeshCoordinatesIterator
     {
     public:
@@ -96,9 +98,11 @@ namespace DetourNavigator
         return static_cast<std::size_t>(pathLen);
     }
 
+    // FIX VITA: Usar sintaxis clásica de templates
+    template <class OutputIterator>
     Status makeSmoothPath(const dtNavMeshQuery& navMeshQuery, const osg::Vec3f& start, const osg::Vec3f& end,
         std::span<dtPolyRef> polygonPath, std::size_t polygonPathSize, std::size_t maxSmoothPathSize, bool skipFirst,
-        std::output_iterator<osg::Vec3f> auto& out)
+        OutputIterator& out)
     {
         assert(polygonPathSize <= polygonPath.size());
 
@@ -119,10 +123,12 @@ namespace DetourNavigator
         return Status::Success;
     }
 
+    // FIX VITA: Usar sintaxis clásica de templates
+    template <class OutputIterator>
     Status findSmoothPath(const dtNavMeshQuery& navMeshQuery, const osg::Vec3f& halfExtents, const osg::Vec3f& start,
         const osg::Vec3f& end, const Flags includeFlags, const AreaCosts& areaCosts, const DetourSettings& settings,
         float endTolerance, const ToNavMeshCoordinatesSpan<const osg::Vec3f>& checkpoints,
-        std::output_iterator<osg::Vec3f> auto out)
+        OutputIterator out)
     {
         dtQueryFilter queryFilter;
         queryFilter.setIncludeFlags(includeFlags);
@@ -200,7 +206,7 @@ namespace DetourNavigator
         osg::Vec3f targetNavMeshPos;
         if (const dtStatus status = navMeshQuery.closestPointOnPoly(
                 polygonPath[*toEndPathSize - 1], end.ptr(), targetNavMeshPos.ptr(), nullptr);
-            dtStatusFailed(status))
+            dtStatusFailed(status)
             return Status::TargetPolygonNotFound;
 
         const Status smoothStatus = makeSmoothPath(navMeshQuery, currentNavMeshPos, targetNavMeshPos, polygonPath,
