@@ -1,16 +1,27 @@
 #include "videowidget.hpp"
 
-#include <osg-ffmpeg-videoplayer/videoplayer.hpp>
+// --- FIX VITA: Desactivar sistema de video (FFmpeg) ---
+// En lugar de incluir la librería real, definimos una clase falsa (Stub)
+// para satisfacer al compilador y al unique_ptr.
 
 #include <MyGUI_RenderManager.h>
-
 #include <osg/Texture2D>
-
 #include <components/debug/debuglog.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
 #include <components/vfs/manager.hpp>
 
-#include "../mwsound/movieaudiofactory.hpp"
+// Falsificamos la clase VideoPlayer y el namespace Video
+// Esto es necesario porque el header videowidget.hpp tiene un miembro de este tipo.
+namespace Video
+{
+    class VideoPlayer
+    {
+    public:
+        VideoPlayer() {}
+        ~VideoPlayer() {}
+        // No necesitamos implementar nada más porque no llamaremos a sus métodos.
+    };
+}
 
 namespace MWGui
 {
@@ -18,10 +29,14 @@ namespace MWGui
     VideoWidget::VideoWidget()
         : mVFS(nullptr)
     {
-        mPlayer = std::make_unique<Video::VideoPlayer>();
+        // NO instanciamos el reproductor real.
+        // Dejamos mPlayer como nullptr o creamos el dummy si fuera necesario,
+        // pero como vamos a bloquear las llamadas, nullptr es seguro.
+        // mPlayer = std::make_unique<Video::VideoPlayer>(); 
         setNeedKeyFocus(true);
     }
 
+    // El destructor necesita ver la definición completa de VideoPlayer (nuestra falsa)
     VideoWidget::~VideoWidget() = default;
 
     void VideoWidget::setVFS(const VFS::Manager* vfs)
@@ -31,88 +46,66 @@ namespace MWGui
 
     void VideoWidget::playVideo(const std::string& video)
     {
-        mPlayer->setAudioFactory(new MWSound::MovieAudioFactory());
-
-        Files::IStreamPtr videoStream;
-        try
-        {
-            videoStream = mVFS->get(video);
-        }
-        catch (std::exception& e)
-        {
-            Log(Debug::Error) << "Failed to open video: " << e.what();
-            return;
-        }
-
-        mPlayer->playVideo(std::move(videoStream), video);
-
-        osg::ref_ptr<osg::Texture2D> texture = mPlayer->getVideoTexture();
-        if (!texture)
-            return;
-
-        mTexture = std::make_unique<MyGUIPlatform::OSGTexture>(texture);
-
-        setRenderItemTexture(mTexture.get());
-        getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, 1.f, 1.f, 0.f));
+        // En Vita, simplemente ignoramos la petición de reproducir video.
+        // Esto evitará crashes y dependencias de ffmpeg.
+        Log(Debug::Info) << "PS Vita: Video playback skipped for " << video;
+        
+        // Opcional: Podrías poner una textura negra o estática aquí si quisieras,
+        // pero dejarlo vacío simplemente mostrará lo que haya detrás (probablemente negro).
     }
 
     int VideoWidget::getVideoWidth()
     {
-        return mPlayer->getVideoWidth();
+        return 0; // Sin video, sin ancho
     }
 
     int VideoWidget::getVideoHeight()
     {
-        return mPlayer->getVideoHeight();
+        return 0; // Sin video, sin alto
     }
 
     bool VideoWidget::update()
     {
-        return mPlayer->update();
+        // Devolver false indica que el video "ha terminado".
+        // Esto es perfecto para saltar intros automáticamente.
+        return false; 
     }
 
     void VideoWidget::stop()
     {
-        mPlayer->close();
+        // Nada que detener
     }
 
     void VideoWidget::pause()
     {
-        mPlayer->pause();
+        // Nada que pausar
     }
 
     void VideoWidget::resume()
     {
-        mPlayer->play();
+        // Nada que reanudar
     }
 
     bool VideoWidget::isPaused() const
     {
-        return mPlayer->isPaused();
+        return false;
     }
 
     bool VideoWidget::hasAudioStream()
     {
-        return mPlayer->hasAudioStream();
+        return false;
     }
 
     void VideoWidget::autoResize(bool stretch)
     {
+        // Versión simplificada de autoResize que llena la pantalla
+        // o hace lo básico para evitar cálculos con dimensiones 0.
         MyGUI::IntSize screenSize = MyGUI::RenderManager::getInstance().getViewSize();
         if (getParent())
             screenSize = getParent()->getSize();
 
-        if (getVideoHeight() > 0 && !stretch)
-        {
-            double imageaspect = static_cast<double>(getVideoWidth()) / getVideoHeight();
-
-            int leftPadding = std::max(0, static_cast<int>(screenSize.width - screenSize.height * imageaspect) / 2);
-            int topPadding = std::max(0, static_cast<int>(screenSize.height - screenSize.width / imageaspect) / 2);
-
-            setCoord(leftPadding, topPadding, screenSize.width - leftPadding * 2, screenSize.height - topPadding * 2);
-        }
-        else
-            setCoord(0, 0, screenSize.width, screenSize.height);
+        setCoord(0, 0, screenSize.width, screenSize.height);
     }
 
 }
+// -----------------------------------------------------
