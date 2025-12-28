@@ -774,7 +774,7 @@ namespace MWRender
                 return technique;
 
         std::string name;
-        if (mTechniqueFiles.contains(path))
+       if (mTechniqueFiles.count(VFS::Path::Normalized(path)))
             name = mVFS->getStem(path);
         else
             name = path.stem();
