@@ -206,7 +206,7 @@ namespace DetourNavigator
         osg::Vec3f targetNavMeshPos;
         if (const dtStatus status = navMeshQuery.closestPointOnPoly(
                 polygonPath[*toEndPathSize - 1], end.ptr(), targetNavMeshPos.ptr(), nullptr);
-            dtStatusFailed(status)
+            dtStatusFailed(status))
             return Status::TargetPolygonNotFound;
 
         const Status smoothStatus = makeSmoothPath(navMeshQuery, currentNavMeshPos, targetNavMeshPos, polygonPath,
