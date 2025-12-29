@@ -1,16 +1,31 @@
-#ifndef OPENMW_MWSOUND_MOVIEAUDIOFACTORY_H
-#define OPENMW_MWSOUND_MOVIEAUDIOFACTORY_H
+#ifndef OPENMW_MWSOUND_MOVIEAUDIOFACTORY_HPP
+#define OPENMW_MWSOUND_MOVIEAUDIOFACTORY_HPP
 
-#include <osg-ffmpeg-videoplayer/audiofactory.hpp>
+// FIX VITA: Stub para MovieAudioFactory.
+// Desactivamos la dependencia real de osg-ffmpeg-videoplayer.
 
-namespace MWSound
-{
+#ifndef __vita__
+    // Si NO es Vita, intentamos incluir el archivo original (que fallará si no tienes ffmpeg)
+    #include <osg-ffmpeg-videoplayer/audiofactory.hpp>
 
-    class MovieAudioFactory : public Video::MovieAudioFactory
+    namespace MWSound
     {
-        std::unique_ptr<Video::MovieAudioDecoder> createDecoder(Video::VideoState* videoState) override;
-    };
-
-}
+        class MovieAudioFactory : public Video::AudioFactory
+        {
+        public:
+            virtual Video::AudioSink* createAudioSink(Video::AudioStream* stream);
+        };
+    }
+#else
+    // Si ES Vita, usamos una clase vacía para que el compilador no se queje si la ve.
+    namespace MWSound
+    {
+        class MovieAudioFactory
+        {
+        public:
+            // No hace nada, no hereda de nada.
+        };
+    }
+#endif
 
 #endif
