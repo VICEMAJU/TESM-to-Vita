@@ -1,3 +1,4 @@
+#ifndef __vita__
 #ifndef GAME_SOUND_FFMPEGDECODER_H
 #define GAME_SOUND_FFMPEGDECODER_H
 
@@ -126,4 +127,5 @@ namespace MWSound
     };
 }
 
+#endif
 #endif
