@@ -1,3 +1,5 @@
+#ifndef __vita__
+
 #include "ffmpegdecoder.hpp"
 
 #include <algorithm>
@@ -536,4 +538,5 @@ namespace MWSound
     {
         close();
     }
+#endif 
 }
