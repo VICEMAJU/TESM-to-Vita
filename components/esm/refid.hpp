@@ -75,6 +75,13 @@ namespace ESM
         {
         }
 
+        // --- FIX VITA --- Ojala que ande porfavor
+        RefId(const RefId&) = default;
+        RefId(RefId&&) noexcept = default;
+        RefId& operator=(const RefId&) = default;
+        RefId& operator=(RefId&&) noexcept = default;
+        // ----------------------------------
+
         constexpr RefId(EmptyRefId value) noexcept
             : mValue(value)
         {
