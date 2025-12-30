@@ -266,7 +266,7 @@ namespace MWWorld
         typename std::vector<T*>::const_iterator it = mShared.begin();
         for (; it != mShared.end(); ++it)
         {
-            list.push_back((*it)->mId);
+            list.emplace_back((*it)->mId);
         }
     }
 
@@ -762,7 +762,7 @@ namespace MWWorld
 
         for (const ESM::Cell* sharedCell : mSharedInt)
         {
-            list.push_back(ESM::RefId::stringRefId(sharedCell->mName));
+            list.emplace_back(ESM::RefId::stringRefId(sharedCell->mName));;
         }
     }
     ESM::Cell* Store<ESM::Cell>::insert(const ESM::Cell& cell)
@@ -1127,7 +1127,7 @@ namespace MWWorld
     {
         list.reserve(list.size() + getSize());
         for (const auto& dialogue : mShared)
-            list.push_back(dialogue->mId);
+            list.emplace_back(dialogue->mId);
     }
 
     const MWDialogue::KeywordSearch<int>& Store<ESM::Dialogue>::getDialogIdKeywordSearch() const
