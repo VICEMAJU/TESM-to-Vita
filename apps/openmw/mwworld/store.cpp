@@ -266,7 +266,7 @@ namespace MWWorld
         typename std::vector<T*>::const_iterator it = mShared.begin();
         for (; it != mShared.end(); ++it)
         {
-           // FIX VITA: Copia explicita para evitar error de vector
+            // FIX VITA: Copia explicita para evitar error de vector
             Id idCopy = (*it)->mId;
             list.push_back(idCopy);
         }
@@ -764,7 +764,7 @@ namespace MWWorld
 
         for (const ESM::Cell* sharedCell : mSharedInt)
         {
-            // FIX VITA: Copia explicita
+           // FIX VITA: Copia explicita
             ESM::RefId idCopy = ESM::RefId::stringRefId(sharedCell->mName);
             list.push_back(idCopy);
         }
