@@ -544,13 +544,13 @@ namespace MWWorld
     }
     const ESM::Cell* Store<ESM::Cell>::search(std::string_view name) const
     {
-        DynamicInt::const_iterator it = mInt.find(name);
+        DynamicInt::const_iterator it = mInt.find(std::string(name));
         if (it != mInt.end())
         {
             return it->second;
         }
 
-        DynamicInt::const_iterator dit = mDynamicInt.find(name);
+        DynamicInt::const_iterator dit = mDynamicInt.find(std::string(name));
         if (dit != mDynamicInt.end())
         {
             return dit->second;
@@ -1131,9 +1131,11 @@ namespace MWWorld
     {
         list.reserve(list.size() + getSize());
         for (const auto& dialogue : mShared)
+        {   // <--- LLAVE IMPORTANTE
             // FIX VITA: Copia explicita
             ESM::RefId idCopy = dialogue->mId;
             list.push_back(idCopy);
+        }   // <--- LLAVE IMPORTANTE
     }
 
     const MWDialogue::KeywordSearch<int>& Store<ESM::Dialogue>::getDialogIdKeywordSearch() const
@@ -1156,7 +1158,7 @@ namespace MWWorld
 
     const ESM4::Cell* Store<ESM4::Cell>::searchCellName(std::string_view cellName) const
     {
-        const auto foundCell = mCellNameIndex.find(cellName);
+        const auto foundCell = mCellNameIndex.find(std::string(cellName));
         if (foundCell == mCellNameIndex.end())
             return nullptr;
         return foundCell->second;
