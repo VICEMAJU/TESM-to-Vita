@@ -266,7 +266,9 @@ namespace MWWorld
         typename std::vector<T*>::const_iterator it = mShared.begin();
         for (; it != mShared.end(); ++it)
         {
-            list.emplace_back((*it)->mId);
+           // FIX VITA: Copia explicita para evitar error de vector
+            Id idCopy = (*it)->mId;
+            list.push_back(idCopy);
         }
     }
 
@@ -762,7 +764,9 @@ namespace MWWorld
 
         for (const ESM::Cell* sharedCell : mSharedInt)
         {
-            list.emplace_back(ESM::RefId::stringRefId(sharedCell->mName));;
+            // FIX VITA: Copia explicita
+            ESM::RefId idCopy = ESM::RefId::stringRefId(sharedCell->mName);
+            list.push_back(idCopy);
         }
     }
     ESM::Cell* Store<ESM::Cell>::insert(const ESM::Cell& cell)
@@ -1127,7 +1131,9 @@ namespace MWWorld
     {
         list.reserve(list.size() + getSize());
         for (const auto& dialogue : mShared)
-            list.emplace_back(dialogue->mId);
+            // FIX VITA: Copia explicita
+            ESM::RefId idCopy = dialogue->mId;
+            list.push_back(idCopy);
     }
 
     const MWDialogue::KeywordSearch<int>& Store<ESM::Dialogue>::getDialogIdKeywordSearch() const
