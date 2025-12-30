@@ -805,8 +805,10 @@ namespace MWWorld
                     {
                         continue;
                     }
-
-                    mIds.emplace_back(std::move(ref.mRefID));
+                
+                    // FIX VITA: Copia explicita
+                    ESM::RefId idCopy = ref.mRefID;
+                    mIds.push_back(idCopy);
                 }
             }
             catch (std::exception& e)
@@ -820,7 +822,8 @@ namespace MWWorld
         for (const auto& [ref, deleted] : cell.mLeasedRefs)
         {
             if (!deleted)
-                mIds.emplace_back(ref.mRefID);
+               ESM::RefId idCopy = ref.mRefID;
+                mIds.push_back(idCopy);
         }
     }
 
@@ -842,12 +845,18 @@ namespace MWWorld
             invocable(*ref);
     }
 
-    void CellStore::listRefs(const ESM4::Cell& cell)
-    {
-      visitCell4References(cell, mStore, mReaders, [&](const ESM4::Reference& ref) { mIds.emplace_back(ref.mBaseObj); });
-        visitCell4ActorReferences(
-            cell, mStore, mReaders, [&](const ESM4::ActorCharacter& ref) { mIds.emplace_back(ref.mBaseObj); });
-    }
+   void CellStore::listRefs(const ESM4::Cell& cell)
+{
+    visitCell4References(cell, mStore, mReaders, [&](const ESM4::Reference& ref) {
+        ESM::RefId idCopy = ref.mBaseObj; // FIX VITA
+        mIds.push_back(idCopy);
+    });
+    visitCell4ActorReferences(
+        cell, mStore, mReaders, [&](const ESM4::ActorCharacter& ref) {
+            ESM::RefId idCopy = ref.mBaseObj; // FIX VITA
+            mIds.push_back(idCopy);
+        });
+}
 
     void CellStore::listRefs()
     {
