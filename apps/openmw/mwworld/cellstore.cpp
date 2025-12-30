@@ -822,9 +822,10 @@ namespace MWWorld
         for (const auto& [ref, deleted] : cell.mLeasedRefs)
         {
             if (!deleted)
+            {
                ESM::RefId idCopy = ref.mRefID;
                 mIds.push_back(idCopy);
-        }
+            }
     }
 
     template <typename ReferenceInvocable>
