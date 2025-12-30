@@ -806,7 +806,7 @@ namespace MWWorld
                         continue;
                     }
 
-                    mIds.push_back(std::move(ref.mRefID));
+                    mIds.emplace_back(std::move(ref.mRefID));
                 }
             }
             catch (std::exception& e)
@@ -820,7 +820,7 @@ namespace MWWorld
         for (const auto& [ref, deleted] : cell.mLeasedRefs)
         {
             if (!deleted)
-                mIds.push_back(ref.mRefID);
+                mIds.emplace_back(ref.mRefID);
         }
     }
 
@@ -844,9 +844,9 @@ namespace MWWorld
 
     void CellStore::listRefs(const ESM4::Cell& cell)
     {
-        visitCell4References(cell, mStore, mReaders, [&](const ESM4::Reference& ref) { mIds.push_back(ref.mBaseObj); });
+      visitCell4References(cell, mStore, mReaders, [&](const ESM4::Reference& ref) { mIds.emplace_back(ref.mBaseObj); });
         visitCell4ActorReferences(
-            cell, mStore, mReaders, [&](const ESM4::ActorCharacter& ref) { mIds.push_back(ref.mBaseObj); });
+            cell, mStore, mReaders, [&](const ESM4::ActorCharacter& ref) { mIds.emplace_back(ref.mBaseObj); });
     }
 
     void CellStore::listRefs()
