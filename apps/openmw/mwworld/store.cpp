@@ -1131,11 +1131,11 @@ namespace MWWorld
     {
         list.reserve(list.size() + getSize());
         for (const auto& dialogue : mShared)
-        {   // <--- LLAVE IMPORTANTE
+        {   // <--- ¡ABRIR LLAVE!
             // FIX VITA: Copia explicita
             ESM::RefId idCopy = dialogue->mId;
             list.push_back(idCopy);
-        }   // <--- LLAVE IMPORTANTE
+        }   // <--- ¡CERRAR LLAVE!
     }
 
     const MWDialogue::KeywordSearch<int>& Store<ESM::Dialogue>::getDialogIdKeywordSearch() const
