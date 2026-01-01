@@ -1,6 +1,6 @@
 name: FASE 3 - Compilando OpenMW
 
-on: [workflow_dispatch]
+on: [push , workflow_dispatch]
 
 permissions:
   actions: read
