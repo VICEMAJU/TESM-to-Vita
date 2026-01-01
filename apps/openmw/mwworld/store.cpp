@@ -302,7 +302,7 @@ namespace MWWorld
     template <class T, class Id>
     bool TypedDynamicStore<T, Id>::eraseStatic(const Id& id)
     {
-        typename Static::iterator it = mStatic.find(id);
+        auto it = mStatic.find(id);
 
         if (it != mStatic.end())
         {
