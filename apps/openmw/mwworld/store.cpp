@@ -26,7 +26,7 @@ namespace
         auto it = map.find(value);
         if (it != map.end())
         {
-            map.erase(it);
+            map.erase(it); // <--- ERROR AQUÍ: Borrando por iterador
             return true;
         }
         return false;
@@ -302,11 +302,12 @@ namespace MWWorld
     template <class T, class Id>
     bool TypedDynamicStore<T, Id>::eraseStatic(const Id& id)
     {
+        // Usamos find solo para ver si existe y limpiar el vector mShared
         auto it = mStatic.find(id);
 
         if (it != mStatic.end())
         {
-            // delete from the static part of mShared
+            // Borrar de la parte estática de mShared (el vector)
             typename std::vector<T*>::iterator sharedIter = mShared.begin();
             typename std::vector<T*>::iterator end = sharedIter + mStatic.size();
 
@@ -319,7 +320,9 @@ namespace MWWorld
                 }
                 ++sharedIter;
             }
-            mStatic.erase(it);
+            
+            // FIX VITA: Borrar del mapa usando la ID, no el iterador
+            mStatic.erase(id);
         }
 
         return true;
