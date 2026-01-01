@@ -1,3 +1,7 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpsabi"
+#pragma GCC diagnostic ignored "-Wattributes"
+
 #include "cellstore.hpp"
 #include "magiceffects.hpp"
 
