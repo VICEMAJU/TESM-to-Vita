@@ -47,8 +47,10 @@ jobs:
           set(CMAKE_CXX_COMPILER arm-vita-eabi-g++)
           set(CMAKE_FIND_ROOT_PATH "\$ENV{VITASDK}/arm-vita-eabi")
           
-          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -include ${FIX_PATH}")
-          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -include ${FIX_PATH}")
+          # --- CAMBIO APLICADO AQUI: -Wno-psabi ---
+          set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Wno-psabi -include ${FIX_PATH}")
+          set(CMAKE_C_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Wno-psabi -include ${FIX_PATH}")
+          # ----------------------------------------
           
           set(CMAKE_PREFIX_PATH "\${CMAKE_CURRENT_SOURCE_DIR}/deps/osg;\${CMAKE_CURRENT_SOURCE_DIR}/deps/mygui;\${CMAKE_CURRENT_SOURCE_DIR}/deps/lz4;\${CMAKE_CURRENT_SOURCE_DIR}/deps/icu;\${CMAKE_CURRENT_SOURCE_DIR}/deps/sqlite")
           EOF
