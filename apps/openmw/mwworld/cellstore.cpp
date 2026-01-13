@@ -830,8 +830,8 @@ namespace MWWorld
                ESM::RefId idCopy = ref.mRefID;
                 mIds.push_back(idCopy);
             }
-    }
-
+        }
+    } //Correcicion
     template <typename ReferenceInvocable>
     static void visitCell4References(
         const ESM4::Cell& cell, const ESMStore& esmStore, ESM::ReadersCache& readers, ReferenceInvocable&& invocable)
