@@ -1137,3 +1137,28 @@ if (USE_QT)
             COMMENT "Copy *.qm files to resources folder")
     endif ()
 endif()
+   # --- FIX DE ENLAZADO ESPECÍFICO PARA VITA ---
+if(VITA)
+    # Enlazar librerías estándar que suelen faltar en la compilación cruzada
+    link_libraries(
+        m          # Librería de matemáticas
+        pthread    # Librería de hilos POSIX
+        SceCommonDialog_stub
+        SceGxm_stub
+        SceDisplay_stub
+        SceCtrl_stub
+        SceAudio_stub
+        SceSysmodule_stub
+        SceTouch_stub
+        SceMotion_stub
+        SceAppUtil_stub
+        ScePgf_stub
+        SceRtc_stub
+        ScePower_stub
+        SceKernel_stub
+        SceNet_stub
+        SceNetCtl_stub
+    )
+    # Forzar el uso de Boost estático
+    set(Boost_USE_STATIC_LIBS ON)
+endif()
