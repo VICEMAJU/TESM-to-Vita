@@ -832,7 +832,9 @@ namespace MWWorld
             }
         }
     } //Correcicion
-    template <typename ReferenceInvocable>
+namespace
+{    
+template <typename ReferenceInvocable>
     static void visitCell4References(
         const ESM4::Cell& cell, const ESMStore& esmStore, ESM::ReadersCache& readers, ReferenceInvocable&& invocable)
     {
@@ -849,7 +851,7 @@ namespace MWWorld
         for (const ESM4::ActorCharacter* ref : esmStore.get<ESM4::ActorCreature>().getByCell(cell.mId))
             invocable(*ref);
     }
-
+}
    void CellStore::listRefs(const ESM4::Cell& cell)
 {
     visitCell4References(cell, mStore, mReaders, [&](const ESM4::Reference& ref) {
