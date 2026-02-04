@@ -46,6 +46,7 @@ jobs:
           set(CMAKE_C_COMPILER arm-vita-eabi-gcc)
           set(CMAKE_CXX_COMPILER arm-vita-eabi-g++)
           set(CMAKE_FIND_ROOT_PATH "\$ENV{VITASDK}/arm-vita-eabi")
+          set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
           
           # --- CAMBIO APLICADO AQUI: -Wno-psabi ---
           set(CMAKE_CXX_FLAGS "-O3 -D__vita__ -DPATH_MAX=4096 -DNO_WORDEXP -Wno-psabi -include ${FIX_PATH}")
